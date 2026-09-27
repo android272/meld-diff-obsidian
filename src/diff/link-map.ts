@@ -43,32 +43,34 @@ function span(view: EditorView, from: number, to: number): { top: number; bottom
 	return { top, bottom };
 }
 
-/** Stretch the drawing from the left text's right edge to the right text's left edge, across the scrollbar and line numbers. */
-function waveBounds(column: HTMLElement, left: EditorView, right: EditorView): { left: number; width: number } {
-	const columnRect = column.getBoundingClientRect();
-	const width = columnRect.width || column.clientWidth || 48;
-	const leftTextRight = visibleTextRight(left);
-	const rightTextLeft = visibleTextLeft(right);
-	// Scrollbars and line-number gutters sit between the gap and the text. Cap a bad measurement.
-	const extendLeft = Math.min(96, Math.max(0, columnRect.left - leftTextRight));
-	const extendRight = Math.min(96, Math.max(0, rightTextLeft - columnRect.right));
-	return { left: -extendLeft, width: width + extendLeft + extendRight };
+interface HunkShape {
+	fill: string;
+	outline: string;
+	top: number;
 }
 
-function visibleTextRight(view: EditorView): number {
-	const rect = view.scrollDOM.getBoundingClientRect();
-	return rect.left + view.scrollDOM.clientLeft + view.scrollDOM.clientWidth;
+/** One filled bridge plus an outline that wraps both changed regions and the wave. */
+function hunkShape(l0: number, l1: number, r0: number, r1: number, yLT: number, yLB: number, yRT: number, yRB: number): HunkShape {
+	const mid = (l1 + r0) / 2;
+	const fill = `M ${l1} ${yLT} C ${mid} ${yLT} ${mid} ${yRT} ${r0} ${yRT} L ${r0} ${yRB} C ${mid} ${yRB} ${mid} ${yLB} ${l1} ${yLB} Z`;
+	const outline = `M ${l0} ${yLT} L ${l1} ${yLT} C ${mid} ${yLT} ${mid} ${yRT} ${r0} ${yRT} L ${r1} ${yRT} L ${r1} ${yRB} L ${r0} ${yRB} C ${mid} ${yRB} ${mid} ${yLB} ${l1} ${yLB} L ${l0} ${yLB} Z`;
+	return { fill, outline, top: Math.min(yLT, yRT) };
 }
 
-function visibleTextLeft(view: EditorView): number {
+function textEdges(view: EditorView): { left: number; right: number } {
+	const scroller = view.scrollDOM;
+	const rect = scroller.getBoundingClientRect();
 	const gutter = view.dom.querySelector('.cm-gutters');
-	if (gutter) return gutter.getBoundingClientRect().right;
-	return view.scrollDOM.getBoundingClientRect().left;
+	const left = gutter ? gutter.getBoundingClientRect().right : rect.left;
+	const right = rect.left + scroller.clientLeft + scroller.clientWidth;
+	return { left, right };
 }
 
-function wave(leftTop: number, leftBottom: number, rightTop: number, rightBottom: number, width: number): string {
-	const cx = width / 2;
-	return `M 0 ${leftTop} C ${cx} ${leftTop} ${cx} ${rightTop} ${width} ${rightTop} L ${width} ${rightBottom} C ${cx} ${rightBottom} ${cx} ${leftBottom} 0 ${leftBottom} Z`;
+/** Document Y of a hunk, in pixels below the link column's top. `documentTop` already includes the editor's 4px content padding. */
+function hunkY(view: EditorView, from: number, to: number, columnTop: number): { top: number; bottom: number } {
+	const block = span(view, from, to);
+	const origin = view.documentTop - columnTop;
+	return { top: origin + block.top, bottom: origin + block.bottom };
 }
 
 function actionFor(mode: ModifierMode, dir: 'left' | 'right', where: 'above' | 'below'): HunkAction {
@@ -125,7 +127,7 @@ export class LinkMap {
 	setMode(mode: ModifierMode): void {
 		if (mode === this.mode) return;
 		this.mode = mode;
-		this.renderButtons();
+		this.redraw();
 	}
 
 	redraw(): void {
@@ -136,39 +138,50 @@ export class LinkMap {
 			return;
 		}
 		const height = this.host.clientHeight || 1;
-		const bounds = waveBounds(this.host, model.a, model.b);
-		this.svg.style.left = `${bounds.left}px`;
-		this.svg.style.width = `${bounds.width}px`;
-		this.svg.setAttribute('width', String(bounds.width));
+		const columnRect = this.host.getBoundingClientRect();
+		const leftEdge = textEdges(model.a);
+		const rightEdge = textEdges(model.b);
+		const svgLeft = leftEdge.left - columnRect.left;
+		const svgWidth = Math.max(columnRect.width || 48, rightEdge.right - leftEdge.left);
+		const x = (screenX: number) => screenX - leftEdge.left;
+		this.svg.style.left = `${svgLeft}px`;
+		this.svg.style.width = `${svgWidth}px`;
+		this.svg.setAttribute('width', String(svgWidth));
 		this.svg.setAttribute('height', String(height));
-		this.svg.setAttribute('viewBox', `0 0 ${bounds.width} ${height}`);
+		this.svg.setAttribute('viewBox', `0 0 ${svgWidth} ${height}`);
+		const tops: number[] = [];
 		model.chunks.forEach((chunk, index) => {
-			const left = span(model.a, chunk.fromA, chunk.toA);
-			const right = span(model.b, chunk.fromB, chunk.toB);
-			const path = document.createElementNS(SVG_NS, 'path');
-			path.setAttribute('d', wave(left.top - model.scrollA, left.bottom - model.scrollA, right.top - model.scrollB, right.bottom - model.scrollB, bounds.width));
-			path.classList.add('meld-wave', `meld-wave-${chunkKind(chunk)}`);
-			path.addEventListener('mouseenter', () => {
-				path.classList.add('is-hot');
-				this.actions.hover(index);
-			});
-			path.addEventListener('mouseleave', () => {
-				path.classList.remove('is-hot');
-				this.actions.hover(null);
-			});
-			path.addEventListener('click', (event) => {
+			const left = hunkY(model.a, chunk.fromA, chunk.toA, columnRect.top);
+			const right = hunkY(model.b, chunk.fromB, chunk.toB, columnRect.top);
+			const shape = hunkShape(x(leftEdge.left), x(leftEdge.right), x(rightEdge.left), x(rightEdge.right), left.top, left.bottom, right.top, right.bottom);
+			tops.push(shape.top);
+			const kind = chunkKind(chunk);
+			const fill = document.createElementNS(SVG_NS, 'path');
+			fill.setAttribute('d', shape.fill);
+			fill.classList.add('meld-wave', `meld-wave-${kind}`);
+			const outline = document.createElementNS(SVG_NS, 'path');
+			outline.setAttribute('d', shape.outline);
+			outline.classList.add('meld-hunk-outline', `meld-hunk-outline-${kind}`);
+			const markHot = (hot: boolean) => {
+				fill.classList.toggle('is-hot', hot);
+				outline.classList.toggle('is-hot', hot);
+				this.actions.hover(hot ? index : null);
+			};
+			fill.addEventListener('mouseenter', () => markHot(true));
+			fill.addEventListener('mouseleave', () => markHot(false));
+			fill.addEventListener('click', (event) => {
 				event.preventDefault();
 				this.actions.reveal(chunk);
 			});
-			path.addEventListener('contextmenu', (event) => {
+			fill.addEventListener('contextmenu', (event) => {
 				event.preventDefault();
 				event.stopPropagation();
 				this.actions.reveal(chunk);
 				this.host.dispatchEvent(new CustomEvent('meld-hunk-menu', { detail: { chunk, event }, bubbles: true }));
 			});
-			this.svg.appendChild(path);
+			this.svg.append(fill, outline);
 		});
-		this.renderButtons();
+		this.renderButtons(tops);
 	}
 
 	destroy(): void {
@@ -180,15 +193,14 @@ export class LinkMap {
 		this.host.replaceChildren();
 	}
 
-	private renderButtons(): void {
+	private renderButtons(tops: readonly number[] = []): void {
 		const model = this.model();
 		this.buttons.replaceChildren();
 		if (!model) return;
 		model.chunks.forEach((chunk, index) => {
-			const left = span(model.a, chunk.fromA, chunk.toA);
 			const row = document.createElement('div');
 			row.className = 'meld-hunk-buttons';
-			row.style.top = `${Math.max(0, left.top - model.scrollA)}px`;
+			row.style.top = `${Math.max(0, tops[index] ?? 0)}px`;
 			const dirs: Array<'left' | 'right'> = ['left', 'right'];
 			if (this.mode === 'insert') {
 				for (const dir of dirs) {

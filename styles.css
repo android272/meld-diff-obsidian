@@ -325,24 +325,42 @@
 .meld-wave {
 	cursor: pointer;
 	pointer-events: visiblePainted;
+	stroke: none;
+}
+
+.meld-hunk-outline {
+	fill: none;
+	stroke-width: 1.5;
+	stroke-linejoin: round;
+	pointer-events: none;
 }
 
 .meld-wave-change {
-	fill: color-mix(in srgb, var(--color-yellow) 25%, transparent);
-	stroke: color-mix(in srgb, var(--color-yellow) 70%, transparent);
+	fill: color-mix(in srgb, var(--color-yellow) 22%, transparent);
 }
 
 .meld-wave-insert {
-	fill: color-mix(in srgb, var(--color-green) 22%, transparent);
-	stroke: color-mix(in srgb, var(--color-green) 65%, transparent);
+	fill: color-mix(in srgb, var(--color-green) 18%, transparent);
 }
 
 .meld-wave-delete {
-	fill: color-mix(in srgb, var(--color-red) 22%, transparent);
-	stroke: color-mix(in srgb, var(--color-red) 65%, transparent);
+	fill: color-mix(in srgb, var(--color-red) 18%, transparent);
 }
 
-.meld-wave.is-hot {
+.meld-hunk-outline-change {
+	stroke: color-mix(in srgb, var(--color-yellow) 78%, transparent);
+}
+
+.meld-hunk-outline-insert {
+	stroke: color-mix(in srgb, var(--color-green) 72%, transparent);
+}
+
+.meld-hunk-outline-delete {
+	stroke: color-mix(in srgb, var(--color-red) 72%, transparent);
+}
+
+.meld-wave.is-hot,
+.meld-hunk-outline.is-hot {
 	filter: brightness(1.35);
 }
 

@@ -100,7 +100,7 @@ export class DiffSurface {
 		if (this.merge && (partial.highlight !== undefined || partial.collapse !== undefined || partial.collapseMargin !== undefined)) {
 			this.merge.reconfigure({
 				highlightChanges: this.options.highlight,
-				gutter: true,
+				gutter: false,
 				collapseUnchanged: this.options.collapse ? { margin: this.options.collapseMargin } : undefined,
 			});
 		}
@@ -162,7 +162,7 @@ export class DiffSurface {
 			b: { doc: right.text, extensions: this.extensions('right', right, rightSlots) },
 			parent: this.root,
 			highlightChanges: this.options.highlight,
-			gutter: true,
+			gutter: false,
 			orientation: 'a-b',
 			diffConfig: { scanLimit: this.options.scanLimit },
 			collapseUnchanged: this.options.collapse ? { margin: this.options.collapseMargin } : undefined,
