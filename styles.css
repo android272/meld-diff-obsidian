@@ -398,6 +398,41 @@
 	border: none !important;
 }
 
+.meld-diff-view .cm-ws-space,
+.meld-diff-view .cm-ws-tab {
+	position: relative;
+}
+
+.meld-diff-view .cm-ws-space::after,
+.meld-diff-view .cm-ws-tab::after {
+	position: absolute;
+	color: var(--text-faint);
+	pointer-events: none;
+	font-style: normal;
+	font-weight: normal;
+}
+
+.meld-diff-view .cm-ws-space::after {
+	content: "·";
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -58%);
+}
+
+.meld-diff-view .cm-ws-tab::after {
+	content: "→";
+	left: 0;
+	top: 50%;
+	transform: translateY(-58%);
+}
+
+.meld-diff-view .cm-ws-eol {
+	color: var(--text-faint);
+	pointer-events: none;
+	user-select: none;
+	padding-left: 0.1em;
+}
+
 .meld-diff-view .cm-line.meld-hunk-change {
 	background-color: color-mix(in srgb, var(--color-yellow) 22%, transparent) !important;
 }

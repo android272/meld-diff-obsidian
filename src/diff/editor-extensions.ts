@@ -6,6 +6,7 @@ import { Compartment, EditorState, Prec, type Extension } from '@codemirror/stat
 import { drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from '@codemirror/view';
 import { isMarkdownPath } from '../text-util';
 import { chunkDecorationExtensions } from './decorations';
+import { whitespaceExtensions } from './whitespace';
 
 export interface PaneKeymap {
 	onSave: () => boolean;
@@ -20,6 +21,7 @@ export interface PaneKeymap {
 export interface PaneCompartments {
 	wrap: Compartment;
 	lineNumbers: Compartment;
+	whitespace: Compartment;
 	activeLine: Compartment;
 	editable: Compartment;
 	dark: Compartment;
@@ -29,6 +31,7 @@ export function createCompartments(): PaneCompartments {
 	return {
 		wrap: new Compartment(),
 		lineNumbers: new Compartment(),
+		whitespace: new Compartment(),
 		activeLine: new Compartment(),
 		editable: new Compartment(),
 		dark: new Compartment(),
@@ -49,6 +52,7 @@ export function paneExtensions(options: {
 	wrap: boolean;
 	showCurrentLine: boolean;
 	showLineNumbers: boolean;
+	showWhitespace: boolean;
 	readOnly: boolean;
 	dark: boolean;
 	tabSize: number;
@@ -59,6 +63,7 @@ export function paneExtensions(options: {
 	const { compartments: slots, keys } = options;
 	const extensions = [
 		slots.lineNumbers.of(lineNumberExtensions(options.showLineNumbers)),
+		slots.whitespace.of(whitespaceExtensions(options.showWhitespace)),
 		slots.activeLine.of(activeLineExtensions(options.showCurrentLine, options.showLineNumbers)),
 		drawSelection(),
 		history(),

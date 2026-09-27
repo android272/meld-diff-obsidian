@@ -362,6 +362,7 @@ export class DiffView extends ItemView {
 			wrap: settings.wrapLines,
 			showCurrentLine: settings.showCurrentLine,
 			showLineNumbers: settings.showLineNumbers,
+			showWhitespace: settings.showWhitespace,
 			highlight: settings.showIntraLine,
 			collapse: settings.collapseUnchanged,
 			collapseMargin: settings.collapseMargin,
@@ -497,10 +498,11 @@ export class DiffView extends ItemView {
 
 	private openDisplayMenu(event: MouseEvent): void {
 		const menu = new Menu();
-		const items: Array<{ title: string; key: 'alignScroll' | 'showCurrentLine' | 'showLineNumbers' | 'wrapLines' | 'showIntraLine' | 'collapseUnchanged' }> = [
+		const items: Array<{ title: string; key: 'alignScroll' | 'showCurrentLine' | 'showLineNumbers' | 'showWhitespace' | 'wrapLines' | 'showIntraLine' | 'collapseUnchanged' }> = [
 			{ title: 'Align scroll', key: 'alignScroll' },
 			{ title: 'Show current line', key: 'showCurrentLine' },
 			{ title: 'Show line numbers', key: 'showLineNumbers' },
+			{ title: 'Show whitespace', key: 'showWhitespace' },
 			{ title: 'Text wrapping', key: 'wrapLines' },
 			{ title: 'Highlight changes inside a line', key: 'showIntraLine' },
 			{ title: 'Collapse unchanged regions', key: 'collapseUnchanged' },

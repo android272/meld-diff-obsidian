@@ -89,6 +89,9 @@ export class MeldDiffSettingTab extends PluginSettingTab {
 		this.toggle(containerEl, 'Show line numbers', '', this.plugin.settings.showLineNumbers, (value) => {
 			this.plugin.settings.showLineNumbers = value;
 		}, false);
+		this.toggle(containerEl, 'Show whitespace', 'Draw spaces, tabs, and line endings in the editor. Files are still saved with normal whitespace.', this.plugin.settings.showWhitespace, (value) => {
+			this.plugin.settings.showWhitespace = value;
+		}, false);
 		this.toggle(containerEl, 'Text wrapping', '', this.plugin.settings.wrapLines, (value) => {
 			this.plugin.settings.wrapLines = value;
 		}, false);
