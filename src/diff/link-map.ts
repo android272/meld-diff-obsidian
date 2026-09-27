@@ -141,6 +141,7 @@ export class LinkMap {
 			this.buttons.replaceChildren();
 			return;
 		}
+		this.fitColumn();
 		const height = this.host.clientHeight || 1;
 		const columnRect = this.host.getBoundingClientRect();
 		const leftEdge = textEdges(model.a);
@@ -195,6 +196,17 @@ export class LinkMap {
 		for (const cleanup of this.cleanups) cleanup();
 		this.closePopover();
 		this.host.replaceChildren();
+	}
+
+	/** In aligned mode the editors grow with the file and the outer view scrolls. Pin the column to that visible frame so the wave stays on screen. */
+	private fitColumn(): void {
+		const surface = this.host.closest('.meld-surface');
+		const scroller = this.host.closest('.cm-mergeView') as HTMLElement | null;
+		if (surface?.classList.contains('is-aligned') && scroller && scroller.clientHeight > 0) {
+			this.host.style.height = `${scroller.clientHeight}px`;
+			return;
+		}
+		this.host.style.height = '';
 	}
 
 	private renderButtons(tops: readonly number[] = []): void {

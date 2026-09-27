@@ -310,13 +310,14 @@
 	position: absolute;
 	top: 0;
 	height: 100%;
-	overflow: visible;
+	overflow: hidden;
 	pointer-events: none;
 }
 
 .meld-link-buttons {
 	position: absolute;
 	inset: 0;
+	overflow: hidden;
 	pointer-events: none;
 }
 
