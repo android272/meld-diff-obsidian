@@ -43,8 +43,6 @@ function editorIndent(plugin: MeldDiffPlugin): { tabSize: number; useTab: boolea
 export class DiffView extends ItemView {
 	private readonly sides: Record<Side, SideState> = { left: emptySide(), right: emptySide() };
 	private focused: Side = 'left';
-	private alignScroll = true;
-	private wrap = true;
 	private opened = false;
 	private loading = false;
 	private loadToken = 0;
@@ -60,15 +58,12 @@ export class DiffView extends ItemView {
 	private rightLabel: HTMLElement | null = null;
 	private leftSave: HTMLButtonElement | null = null;
 	private rightSave: HTMLButtonElement | null = null;
-	private wrapButton: HTMLButtonElement | null = null;
-	private alignButton: HTMLButtonElement | null = null;
 	private readonly warned = new Set<string>();
 	private readonly autoTimers: Record<Side, number> = { left: 0, right: 0 };
 
 	constructor(leaf: WorkspaceLeaf, private readonly plugin: MeldDiffPlugin) {
 		super(leaf);
 		this.navigation = true;
-		this.wrap = plugin.settings.wrapLines;
 		this.scope = new Scope(this.app.scope);
 		this.scope.register(['Mod'], 's', () => {
 			void this.saveFocused();
@@ -107,15 +102,11 @@ export class DiffView extends ItemView {
 		return {
 			leftPath: this.sides.left.path,
 			rightPath: this.sides.right.path,
-			alignScroll: this.alignScroll,
-			wrap: this.wrap,
 		};
 	}
 
 	async setState(state: unknown, _result: ViewStateResult): Promise<void> {
 		const raw = (state ?? {}) as DiffViewState;
-		if (typeof raw.alignScroll === 'boolean') this.alignScroll = raw.alignScroll;
-		if (typeof raw.wrap === 'boolean') this.wrap = raw.wrap;
 		const left = typeof raw.leftPath === 'string' ? raw.leftPath : null;
 		const right = typeof raw.rightPath === 'string' ? raw.rightPath : null;
 		if (this.opened) await this.loadPair(left, right, false);
@@ -143,8 +134,7 @@ export class DiffView extends ItemView {
 		this.countEl = tools.createSpan({ cls: 'meld-change-count', text: 'Changes: 0' });
 		this.textButton(tools, 'Prev', 'Previous change', () => this.prevHunk());
 		this.textButton(tools, 'Next', 'Next change', () => this.nextHunk());
-		this.wrapButton = this.textButton(tools, 'Wrap', 'Toggle line wrapping', () => this.toggleWrap());
-		this.alignButton = this.textButton(tools, 'Align scroll', 'Toggle aligned scrolling', () => this.toggleAlign());
+		this.textButton(tools, 'Display', 'Display options', (event) => this.openDisplayMenu(event));
 		this.textButton(tools, 'To right', 'Copy all changes left to right', () => { void this.copyAll('to-right'); });
 		this.textButton(tools, 'To left', 'Copy all changes right to left', () => { void this.copyAll('to-left'); });
 		this.bannerEl = this.contentEl.createDiv({ cls: 'meld-banners' });
@@ -365,20 +355,26 @@ export class DiffView extends ItemView {
 		}
 	}
 
-	private mount(): void {
-		if (!this.surface) return;
+	private surfaceOptions(): SurfaceOptions {
+		const settings = this.plugin.settings;
 		const indent = editorIndent(this.plugin);
-		const options: SurfaceOptions = {
-			wrap: this.wrap,
-			highlight: this.plugin.settings.showIntraLine,
-			collapse: this.plugin.settings.collapseUnchanged,
-			collapseMargin: this.plugin.settings.collapseMargin,
-			scanLimit: this.plugin.settings.scanLimit,
+		return {
+			wrap: settings.wrapLines,
+			showCurrentLine: settings.showCurrentLine,
+			highlight: settings.showIntraLine,
+			collapse: settings.collapseUnchanged,
+			collapseMargin: settings.collapseMargin,
+			scanLimit: settings.scanLimit,
 			dark: isDark(),
 			tabSize: indent.tabSize,
 			useTab: indent.useTab,
-			aligned: this.alignScroll,
+			aligned: settings.alignScroll,
 		};
+	}
+
+	private mount(): void {
+		if (!this.surface) return;
+		const options = this.surfaceOptions();
 		this.appliedScan = options.scanLimit;
 		this.surface.set(this.toPane('left'), this.toPane('right'), options);
 		this.renderBanners();
@@ -498,31 +494,35 @@ export class DiffView extends ItemView {
 		this.surface?.copyAll(direction);
 	}
 
-	private toggleWrap(): void {
-		this.wrap = !this.wrap;
-		this.surface?.reconfigure({ wrap: this.wrap });
-		this.updateToggles();
-	}
-
-	private toggleAlign(): void {
-		this.alignScroll = !this.alignScroll;
-		this.surface?.reconfigure({ aligned: this.alignScroll });
-		this.updateToggles();
+	private openDisplayMenu(event: MouseEvent): void {
+		const menu = new Menu();
+		const items: Array<{ title: string; key: 'alignScroll' | 'showCurrentLine' | 'wrapLines' | 'showIntraLine' | 'collapseUnchanged' }> = [
+			{ title: 'Align scroll', key: 'alignScroll' },
+			{ title: 'Show current line', key: 'showCurrentLine' },
+			{ title: 'Text wrapping', key: 'wrapLines' },
+			{ title: 'Highlight changes inside a line', key: 'showIntraLine' },
+			{ title: 'Collapse unchanged regions', key: 'collapseUnchanged' },
+		];
+		for (const item of items) {
+			menu.addItem((entry) => {
+				entry.setTitle(item.title).setChecked(this.plugin.settings[item.key]).onClick(() => {
+					this.plugin.settings[item.key] = !this.plugin.settings[item.key];
+					void this.plugin.saveSettings(false);
+				});
+			});
+		}
+		menu.showAtMouseEvent(event);
 	}
 
 	private applySettings(): void {
 		this.updateToggles();
 		if (!this.surface) return;
-		if (this.plugin.settings.scanLimit !== this.appliedScan) {
+		const options = this.surfaceOptions();
+		if (options.scanLimit !== this.appliedScan) {
 			this.mount();
 			return;
 		}
-		this.surface.reconfigure({
-			highlight: this.plugin.settings.showIntraLine,
-			collapse: this.plugin.settings.collapseUnchanged,
-			collapseMargin: this.plugin.settings.collapseMargin,
-			dark: isDark(),
-		});
+		this.surface.reconfigure(options);
 	}
 
 	private renderChrome(): void {
@@ -594,10 +594,6 @@ export class DiffView extends ItemView {
 	}
 
 	private updateToggles(): void {
-		this.wrapButton?.toggleClass('is-active', this.wrap);
-		this.alignButton?.toggleClass('is-active', this.alignScroll);
-		if (this.wrapButton) this.wrapButton.setAttribute('aria-pressed', String(this.wrap));
-		if (this.alignButton) this.alignButton.setAttribute('aria-pressed', String(this.alignScroll));
 		const manualSave = !this.plugin.settings.autosave;
 		this.leftSave?.toggleClass('meld-save-hidden', !manualSave);
 		this.rightSave?.toggleClass('meld-save-hidden', !manualSave);
@@ -630,12 +626,12 @@ export class DiffView extends ItemView {
 		return button;
 	}
 
-	private textButton(parent: HTMLElement, text: string, label: string, action: () => void): HTMLButtonElement {
+	private textButton(parent: HTMLElement, text: string, label: string, action: (event: MouseEvent) => void): HTMLButtonElement {
 		const button = parent.createEl('button', { cls: 'meld-text-button', text, attr: { 'aria-label': label } });
 		button.title = label;
 		button.addEventListener('click', (event) => {
 			event.preventDefault();
-			action();
+			action(event);
 		});
 		return button;
 	}

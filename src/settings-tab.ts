@@ -79,7 +79,14 @@ export class MeldDiffSettingTab extends PluginSettingTab {
 		this.toggle(containerEl, 'Original on the left', 'Conflict View opens the original on the left and the conflict on the right.', this.plugin.settings.defaultLeftIsOriginal, (value) => {
 			this.plugin.settings.defaultLeftIsOriginal = value;
 		}, false);
-		this.toggle(containerEl, 'Wrap lines', '', this.plugin.settings.wrapLines, (value) => {
+		new Setting(containerEl).setName('Diff display').setHeading();
+		this.toggle(containerEl, 'Align scroll', 'Keep both sides scrolled together.', this.plugin.settings.alignScroll, (value) => {
+			this.plugin.settings.alignScroll = value;
+		}, false);
+		this.toggle(containerEl, 'Show current line', 'Highlight the line the cursor is on.', this.plugin.settings.showCurrentLine, (value) => {
+			this.plugin.settings.showCurrentLine = value;
+		}, false);
+		this.toggle(containerEl, 'Text wrapping', '', this.plugin.settings.wrapLines, (value) => {
 			this.plugin.settings.wrapLines = value;
 		}, false);
 		this.toggle(containerEl, 'Highlight changes inside a line', 'Color the characters and punctuation that differ, not only the whole line.', this.plugin.settings.showIntraLine, (value) => {

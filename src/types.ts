@@ -39,6 +39,8 @@ export interface MeldDiffSettings {
 	autosave: boolean;
 	autosaveMs: number;
 	defaultLeftIsOriginal: boolean;
+	alignScroll: boolean;
+	showCurrentLine: boolean;
 	wrapLines: boolean;
 	showIntraLine: boolean;
 	ribbonConflicts: boolean;
@@ -48,8 +50,6 @@ export interface MeldDiffSettings {
 export interface DiffViewState {
 	leftPath: string | null;
 	rightPath: string | null;
-	alignScroll?: boolean;
-	wrap?: boolean;
 }
 
 export interface ConflictViewState {

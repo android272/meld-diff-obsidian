@@ -19,17 +19,23 @@ export interface PaneKeymap {
 
 export interface PaneCompartments {
 	wrap: Compartment;
+	activeLine: Compartment;
 	editable: Compartment;
 	dark: Compartment;
 }
 
 export function createCompartments(): PaneCompartments {
-	return { wrap: new Compartment(), editable: new Compartment(), dark: new Compartment() };
+	return { wrap: new Compartment(), activeLine: new Compartment(), editable: new Compartment(), dark: new Compartment() };
+}
+
+export function activeLineExtensions(on: boolean): Extension {
+	return on ? [highlightActiveLine(), highlightActiveLineGutter()] : [];
 }
 
 export function paneExtensions(options: {
 	path: string | null;
 	wrap: boolean;
+	showCurrentLine: boolean;
 	readOnly: boolean;
 	dark: boolean;
 	tabSize: number;
@@ -40,8 +46,7 @@ export function paneExtensions(options: {
 	const { compartments: slots, keys } = options;
 	const extensions = [
 		lineNumbers(),
-		highlightActiveLineGutter(),
-		highlightActiveLine(),
+		slots.activeLine.of(activeLineExtensions(options.showCurrentLine)),
 		drawSelection(),
 		history(),
 		bracketMatching(),
