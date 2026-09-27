@@ -406,7 +406,7 @@
 .meld-diff-view .cm-ws-space::after,
 .meld-diff-view .cm-ws-tab::after {
 	position: absolute;
-	color: var(--text-faint);
+	color: var(--text-muted);
 	pointer-events: none;
 	font-style: normal;
 	font-weight: normal;
@@ -426,8 +426,13 @@
 	transform: translateY(-58%);
 }
 
-.meld-diff-view .cm-ws-eol {
-	color: var(--text-faint);
+.meld-diff-view .cm-content,
+.meld-diff-view .cm-content span {
+	color: var(--text-normal);
+}
+
+.meld-diff-view .cm-content .cm-ws-eol {
+	color: var(--text-muted);
 	pointer-events: none;
 	user-select: none;
 	padding-left: 0.1em;

@@ -1,5 +1,5 @@
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
-import { bracketMatching, defaultHighlightStyle, indentUnit, syntaxHighlighting } from '@codemirror/language';
+import { bracketMatching, indentUnit } from '@codemirror/language';
 import { markdown } from '@codemirror/lang-markdown';
 import { highlightSelectionMatches, search, searchKeymap } from '@codemirror/search';
 import { Compartment, EditorState, Prec, type Extension } from '@codemirror/state';
@@ -68,7 +68,6 @@ export function paneExtensions(options: {
 		drawSelection(),
 		history(),
 		bracketMatching(),
-		syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
 		search({ top: true }),
 		highlightSelectionMatches(),
 		keymap.of([...searchKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
@@ -95,7 +94,7 @@ export function paneExtensions(options: {
 			},
 			'.cm-gutters': {
 				backgroundColor: 'var(--background-secondary)',
-				color: 'var(--text-faint)',
+				color: 'var(--text-muted)',
 				border: 'none',
 			},
 			'.cm-activeLine, .cm-activeLineGutter': {
