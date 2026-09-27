@@ -303,9 +303,7 @@
 	height: 100%;
 	align-self: flex-start;
 	overflow: visible;
-	background: var(--background-secondary);
-	border-left: 1px solid var(--background-modifier-border);
-	border-right: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
 }
 
 .meld-link-svg {

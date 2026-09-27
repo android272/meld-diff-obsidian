@@ -52,7 +52,11 @@ interface HunkShape {
 /** One filled bridge plus an outline that wraps both changed regions and the wave. */
 function hunkShape(l0: number, l1: number, r0: number, r1: number, yLT: number, yLB: number, yRT: number, yRB: number): HunkShape {
 	const mid = (l1 + r0) / 2;
-	const fill = `M ${l1} ${yLT} C ${mid} ${yLT} ${mid} ${yRT} ${r0} ${yRT} L ${r0} ${yRB} C ${mid} ${yRB} ${mid} ${yLB} ${l1} ${yLB} Z`;
+	// Bleed a couple of pixels under each side so a scrollbar, border, or subpixel seam cannot show through.
+	const overlap = -0.25;
+	const fillL = l1 - overlap;
+	const fillR = r0 + overlap;
+	const fill = `M ${fillL} ${yLT} L ${l1} ${yLT} C ${mid} ${yLT} ${mid} ${yRT} ${r0} ${yRT} L ${fillR} ${yRT} L ${fillR} ${yRB} L ${r0} ${yRB} C ${mid} ${yRB} ${mid} ${yLB} ${l1} ${yLB} L ${fillL} ${yLB} Z`;
 	const outline = `M ${l0} ${yLT} L ${l1} ${yLT} C ${mid} ${yLT} ${mid} ${yRT} ${r0} ${yRT} L ${r1} ${yRT} L ${r1} ${yRB} L ${r0} ${yRB} C ${mid} ${yRB} ${mid} ${yLB} ${l1} ${yLB} L ${l0} ${yLB} Z`;
 	return { fill, outline, top: Math.min(yLT, yRT) };
 }
