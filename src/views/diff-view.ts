@@ -128,10 +128,10 @@ export class DiffView extends ItemView {
 		this.contentEl.addClass('meld-diff-view');
 		const header = this.contentEl.createDiv({ cls: 'meld-diff-header' });
 		const files = header.createDiv({ cls: 'meld-diff-files' });
-		this.iconButton(files, 'arrow-left-right', 'Swap left and right', () => this.swap());
 		files.createSpan({ cls: 'meld-side-label', text: 'Left' });
 		this.leftLabel = this.fileButton(files, 'left');
 		this.moreButton(files, 'left');
+		this.iconButton(files, 'arrow-left-right', 'Swap left and right', () => this.swap());
 		files.createSpan({ cls: 'meld-side-label', text: 'Right' });
 		this.rightLabel = this.fileButton(files, 'right');
 		this.moreButton(files, 'right');
