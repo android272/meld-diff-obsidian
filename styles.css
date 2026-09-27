@@ -1,0 +1,554 @@
+.meld-ribbon-hidden {
+	display: none !important;
+}
+
+.meld-diff-status {
+	cursor: pointer;
+}
+
+.meld-diff-status.is-alert {
+	color: var(--text-error);
+}
+
+.workspace-leaf-content[data-type="meld-diff-conflicts"] .view-content,
+.workspace-leaf-content[data-type="meld-diff-editor"] .view-content {
+	padding: 0;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+
+.meld-conflict-view,
+.meld-diff-view {
+	flex: 1 1 auto;
+	height: 100%;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	background: var(--background-primary);
+	color: var(--text-normal);
+}
+
+.meld-conflict-header,
+.meld-diff-header {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	padding: 8px 10px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+}
+
+.meld-conflict-header {
+	justify-content: space-between;
+}
+
+.meld-conflict-title {
+	font-weight: 600;
+}
+
+.meld-conflict-tools,
+.meld-diff-tools,
+.meld-preset-row,
+.meld-pattern-head,
+.meld-pattern-recovery,
+.meld-test-row {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+.meld-conflict-view .meld-input {
+	margin: 8px 10px 0;
+}
+
+.meld-conflict-meta {
+	padding: 6px 12px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.meld-conflict-list {
+	overflow: auto;
+	flex: 1;
+	min-height: 0;
+	padding-bottom: 12px;
+}
+
+.meld-folder,
+.meld-original,
+.meld-conflict-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 10px;
+	cursor: pointer;
+}
+
+.meld-folder {
+	font-weight: 600;
+	position: sticky;
+	top: 0;
+	background: var(--background-primary);
+}
+
+.meld-original {
+	padding-left: 18px;
+}
+
+.meld-conflict-row {
+	padding-left: 36px;
+	color: var(--text-muted);
+}
+
+.meld-folder:hover,
+.meld-original:hover,
+.meld-conflict-row:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.meld-name,
+.meld-conflict-when {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.meld-count,
+.meld-size,
+.meld-device {
+	margin-left: auto;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	flex: none;
+}
+
+.meld-conflict-row .meld-size,
+.meld-conflict-row .meld-device,
+.meld-conflict-row .meld-diff-button {
+	margin-left: 0;
+}
+
+.meld-conflict-row .meld-diff-button {
+	margin-left: auto;
+}
+
+.meld-missing {
+	color: var(--text-warning);
+	font-size: var(--font-ui-smaller);
+}
+
+.meld-diff-button,
+.meld-text-button,
+.meld-preset-row button,
+.meld-pattern-head button,
+.meld-test-row button,
+.meld-banner button {
+	background: var(--interactive-normal);
+	color: var(--text-normal);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	padding: 2px 8px;
+	cursor: pointer;
+}
+
+.meld-text-button.is-active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.meld-empty {
+	padding: 24px 16px;
+	color: var(--text-muted);
+	text-align: center;
+}
+
+.meld-empty a {
+	display: inline-block;
+	margin-top: 8px;
+}
+
+.meld-diff-view {
+	container-type: inline-size;
+}
+
+.meld-diff-header {
+	flex-direction: column;
+	align-items: stretch;
+}
+
+.meld-diff-files {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+	min-width: 0;
+}
+
+.meld-side-label {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	flex: none;
+}
+
+.meld-file-button {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 1px;
+	text-align: left;
+	background: var(--background-modifier-form-field);
+	color: var(--text-normal);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	padding: 4px 8px;
+	cursor: pointer;
+}
+
+.meld-picker-name,
+.meld-picker-parent,
+.meld-picker-empty {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.meld-picker-parent,
+.meld-picker-empty {
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+}
+
+.meld-change-count {
+	color: var(--text-muted);
+	margin-right: 4px;
+}
+
+.meld-banners:empty {
+	display: none;
+}
+
+.meld-banner {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	flex-wrap: wrap;
+	padding: 6px 10px;
+	background: var(--background-secondary);
+	border-bottom: 1px solid var(--background-modifier-border);
+	font-size: var(--font-ui-small);
+}
+
+.meld-diff-body {
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.meld-surface,
+.meld-split {
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+	height: 100%;
+	display: flex;
+}
+
+.meld-surface.is-aligned .cm-mergeView {
+	height: 100%;
+	width: 100%;
+	overflow: auto;
+}
+
+.meld-surface:not(.is-aligned) .cm-mergeView {
+	height: 100%;
+	width: 100%;
+	overflow: hidden;
+}
+
+.meld-surface .cm-mergeViewEditors {
+	min-width: min(100%, 560px);
+	align-items: stretch;
+}
+
+.meld-surface:not(.is-aligned) .cm-mergeViewEditors {
+	height: 100%;
+}
+
+.meld-surface .cm-mergeViewEditor {
+	position: relative;
+	z-index: 1;
+	min-width: 180px;
+}
+
+.meld-surface:not(.is-aligned) .cm-editor,
+.meld-surface:not(.is-aligned) .cm-scroller {
+	height: 100% !important;
+	overflow: auto !important;
+}
+
+.meld-link-column {
+	position: sticky;
+	top: 0;
+	z-index: 2;
+	flex: 0 0 48px;
+	width: 48px;
+	height: 100%;
+	align-self: flex-start;
+	overflow: visible;
+	background: var(--background-secondary);
+	border-left: 1px solid var(--background-modifier-border);
+	border-right: 1px solid var(--background-modifier-border);
+}
+
+.meld-link-svg {
+	position: absolute;
+	top: 0;
+	height: 100%;
+	overflow: visible;
+	pointer-events: none;
+}
+
+.meld-link-buttons {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+
+.meld-wave {
+	cursor: pointer;
+	pointer-events: visiblePainted;
+}
+
+.meld-wave-change {
+	fill: color-mix(in srgb, var(--color-yellow) 25%, transparent);
+	stroke: color-mix(in srgb, var(--color-yellow) 70%, transparent);
+}
+
+.meld-wave-insert {
+	fill: color-mix(in srgb, var(--color-green) 22%, transparent);
+	stroke: color-mix(in srgb, var(--color-green) 65%, transparent);
+}
+
+.meld-wave-delete {
+	fill: color-mix(in srgb, var(--color-red) 22%, transparent);
+	stroke: color-mix(in srgb, var(--color-red) 65%, transparent);
+}
+
+.meld-wave.is-hot {
+	filter: brightness(1.35);
+}
+
+.meld-hunk-buttons {
+	position: absolute;
+	left: 0;
+	right: 0;
+	display: flex;
+	justify-content: center;
+	gap: 1px;
+	pointer-events: auto;
+	z-index: 2;
+}
+
+.meld-hunk-stack {
+	display: flex;
+	flex-direction: column;
+}
+
+.meld-hunk-button {
+	width: 14px;
+	height: 14px;
+	padding: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	pointer-events: auto;
+}
+
+.meld-hunk-button svg {
+	width: 12px;
+	height: 12px;
+}
+
+.meld-diff-view .cm-line.meld-hunk-change {
+	background-color: color-mix(in srgb, var(--color-yellow) 22%, transparent) !important;
+}
+
+.meld-diff-view .cm-line.meld-hunk-insert {
+	background-color: color-mix(in srgb, var(--color-green) 18%, transparent) !important;
+}
+
+.meld-diff-view .cm-line.meld-hunk-delete {
+	background-color: color-mix(in srgb, var(--color-red) 18%, transparent) !important;
+}
+
+.meld-diff-view .cm-line.meld-hunk-hot {
+	box-shadow: inset 0 0 0 1px var(--interactive-accent);
+}
+
+.meld-diff-view .cm-changedText {
+	background: color-mix(in srgb, var(--color-orange) 35%, transparent) !important;
+}
+
+.meld-diff-view .cm-scroller {
+	font-family: var(--font-monospace-theme), var(--font-monospace), monospace;
+	font-size: var(--font-text-size);
+	line-height: var(--line-height-normal);
+}
+
+.meld-pane {
+	flex: 1 1 0;
+	min-width: 180px;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	position: relative;
+}
+
+.meld-pane .cm-editor {
+	height: 100%;
+}
+
+.meld-pane .cm-scroller {
+	overflow: auto;
+}
+
+.meld-pane-placeholder {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	padding: 16px;
+	text-align: center;
+	color: var(--text-muted);
+}
+
+.meld-placeholder-detail {
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+}
+
+.meld-insert-pop {
+	position: fixed;
+	z-index: 1000;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 6px;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	box-shadow: var(--shadow-s);
+}
+
+.meld-settings-intro {
+	color: var(--text-muted);
+}
+
+.meld-settings .meld-ignore-globs.setting-item {
+	flex-direction: column;
+	align-items: stretch;
+}
+
+.meld-settings .meld-ignore-globs .setting-item-info,
+.meld-settings .meld-ignore-globs .setting-item-control {
+	width: 100%;
+}
+
+.meld-settings .meld-ignore-globs .setting-item-control {
+	padding-top: 8px;
+}
+
+.meld-settings .meld-ignore-globs-input {
+	width: 100%;
+	max-width: 100%;
+	min-height: 7em;
+	box-sizing: border-box;
+}
+
+.meld-pattern-card {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 10px;
+	margin: 8px 0 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	background: var(--background-primary);
+}
+
+.meld-input,
+.meld-textarea {
+	width: 100%;
+	background-color: var(--background-modifier-form-field);
+	border: 1px solid var(--background-modifier-border);
+	color: var(--text-normal);
+	border-radius: var(--input-radius, var(--radius-s));
+	padding: 6px 8px;
+}
+
+/* background shorthand would reset the dropdown chevron to repeat from the left */
+.meld-pattern-card select.dropdown {
+	width: auto;
+	flex: 0 0 auto;
+	max-width: 100%;
+	background-color: var(--background-modifier-form-field);
+	background-repeat: no-repeat;
+	padding: 6px 1.8em 6px 8px;
+	color: var(--text-normal);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--input-radius, var(--radius-s));
+}
+
+.meld-pattern-head .meld-input,
+.meld-pattern-recovery .meld-input,
+.meld-test-row .meld-input {
+	flex: 1;
+	width: auto;
+}
+
+.meld-textarea {
+	min-height: 72px;
+	font-family: var(--font-monospace);
+	resize: vertical;
+}
+
+.meld-pattern-error {
+	color: var(--text-error);
+	font-size: var(--font-ui-smaller);
+}
+
+.meld-pattern-error:empty {
+	display: none;
+}
+
+.meld-test-result {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.meld-check {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex: none;
+}
+
+@container (max-width: 560px) {
+	.meld-diff-files {
+		flex-wrap: wrap;
+	}
+
+	.meld-file-button {
+		flex: 1 1 calc(100% - 120px);
+	}
+}
