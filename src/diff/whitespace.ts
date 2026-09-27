@@ -1,5 +1,10 @@
-import { RangeSetBuilder, type Extension } from '@codemirror/state';
+import { getChunks } from '@codemirror/merge';
+import { EditorState, Facet, RangeSetBuilder, type Extension } from '@codemirror/state';
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from '@codemirror/view';
+
+const showAllWhitespace = Facet.define<boolean, boolean>({
+	combine: (values) => values[values.length - 1] ?? false,
+});
 
 const spaceMark = Decoration.mark({ class: 'cm-ws-space' });
 const tabMark = Decoration.mark({ class: 'cm-ws-tab' });
@@ -19,10 +24,34 @@ class EndOfLineWidget extends WidgetType {
 
 const endOfLine = Decoration.widget({ widget: new EndOfLineWidget(), side: -1 });
 
+function changedRanges(state: EditorState): Array<{ from: number; to: number }> | null {
+	const info = getChunks(state);
+	if (!info) return null;
+	return info.chunks.map((chunk) => (info.side === 'b' ? { from: chunk.fromB, to: chunk.toB } : { from: chunk.fromA, to: chunk.toA }));
+}
+
+function inChange(pos: number, ranges: ReadonlyArray<{ from: number; to: number }>): boolean {
+	for (const range of ranges) {
+		if (pos >= range.from && pos < range.to) return true;
+	}
+	return false;
+}
+
+function whitespaceSignature(state: EditorState): string {
+	const mode = state.facet(showAllWhitespace) ? 'all' : 'changes';
+	const info = getChunks(state);
+	if (!info) return mode;
+	const body = info.chunks.map((chunk) => `${chunk.fromA},${chunk.toA},${chunk.fromB},${chunk.toB}`).join(';');
+	return `${mode}:${info.side}:${body}`;
+}
+
 /** Visual marks only. Spaces, tabs, and line breaks in the document are unchanged. */
 function buildWhitespace(view: EditorView): DecorationSet {
 	const builder = new RangeSetBuilder<Decoration>();
 	const doc = view.state.doc;
+	const showAll = view.state.facet(showAllWhitespace);
+	const changes = showAll ? null : changedRanges(view.state);
+	if (!showAll && !changes) return Decoration.none;
 	for (const range of view.visibleRanges) {
 		let pos = range.from;
 		while (pos <= range.to && pos <= doc.length) {
@@ -33,9 +62,13 @@ function buildWhitespace(view: EditorView): DecorationSet {
 			for (let i = 0; i < text.length; i++) {
 				const ch = text[i];
 				if (ch !== ' ' && ch !== '\t') continue;
-				builder.add(from + i, from + i + 1, ch === '\t' ? tabMark : spaceMark);
+				const at = from + i;
+				if (!showAll && changes && !inChange(at, changes)) continue;
+				builder.add(at, at + 1, ch === '\t' ? tabMark : spaceMark);
 			}
-			if (line.to < doc.length && line.to >= range.from && line.to <= range.to) builder.add(line.to, line.to, endOfLine);
+			const breakAt = line.to;
+			const showBreak = line.to < doc.length && breakAt >= range.from && breakAt <= range.to && (showAll || (changes ? inChange(breakAt, changes) : false));
+			if (showBreak) builder.add(breakAt, breakAt, endOfLine);
 			if (line.to >= range.to) break;
 			pos = line.to + 1;
 		}
@@ -46,16 +79,22 @@ function buildWhitespace(view: EditorView): DecorationSet {
 const whitespacePlugin = ViewPlugin.fromClass(
 	class {
 		decorations: DecorationSet;
+		private signature: string;
 		constructor(view: EditorView) {
+			this.signature = whitespaceSignature(view.state);
 			this.decorations = buildWhitespace(view);
 		}
 		update(update: ViewUpdate) {
-			if (update.docChanged || update.viewportChanged) this.decorations = buildWhitespace(update.view);
+			const signature = whitespaceSignature(update.state);
+			if (update.docChanged || update.viewportChanged || signature !== this.signature) {
+				this.signature = signature;
+				this.decorations = buildWhitespace(update.view);
+			}
 		}
 	},
 	{ decorations: (plugin) => plugin.decorations },
 );
 
-export function whitespaceExtensions(on: boolean): Extension {
-	return on ? whitespacePlugin : [];
+export function whitespaceExtensions(showAll: boolean): Extension {
+	return [showAllWhitespace.of(showAll), whitespacePlugin];
 }
