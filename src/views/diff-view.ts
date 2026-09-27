@@ -58,6 +58,8 @@ export class DiffView extends ItemView {
 	private bannerEl: HTMLElement | null = null;
 	private leftLabel: HTMLElement | null = null;
 	private rightLabel: HTMLElement | null = null;
+	private leftSave: HTMLButtonElement | null = null;
+	private rightSave: HTMLButtonElement | null = null;
 	private wrapButton: HTMLButtonElement | null = null;
 	private alignButton: HTMLButtonElement | null = null;
 	private readonly warned = new Set<string>();
@@ -128,10 +130,12 @@ export class DiffView extends ItemView {
 		this.contentEl.addClass('meld-diff-view');
 		const header = this.contentEl.createDiv({ cls: 'meld-diff-header' });
 		const files = header.createDiv({ cls: 'meld-diff-files' });
+		this.leftSave = this.iconButton(files, 'save', 'Save left file', () => { void this.save('left'); });
 		files.createSpan({ cls: 'meld-side-label', text: 'Left' });
 		this.leftLabel = this.fileButton(files, 'left');
 		this.moreButton(files, 'left');
 		this.iconButton(files, 'arrow-left-right', 'Swap left and right', () => this.swap());
+		this.rightSave = this.iconButton(files, 'save', 'Save right file', () => { void this.save('right'); });
 		files.createSpan({ cls: 'meld-side-label', text: 'Right' });
 		this.rightLabel = this.fileButton(files, 'right');
 		this.moreButton(files, 'right');
@@ -594,6 +598,9 @@ export class DiffView extends ItemView {
 		this.alignButton?.toggleClass('is-active', this.alignScroll);
 		if (this.wrapButton) this.wrapButton.setAttribute('aria-pressed', String(this.wrap));
 		if (this.alignButton) this.alignButton.setAttribute('aria-pressed', String(this.alignScroll));
+		const manualSave = !this.plugin.settings.autosave;
+		this.leftSave?.toggleClass('meld-save-hidden', !manualSave);
+		this.rightSave?.toggleClass('meld-save-hidden', !manualSave);
 	}
 
 	private fileButton(parent: HTMLElement, side: Side): HTMLElement {

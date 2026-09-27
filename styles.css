@@ -470,6 +470,11 @@
 	color: var(--text-muted);
 }
 
+.meld-setting-hidden,
+.meld-save-hidden {
+	display: none;
+}
+
 .meld-settings .meld-ignore-globs.setting-item {
 	flex-direction: column;
 	align-items: stretch;

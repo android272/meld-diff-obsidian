@@ -100,10 +100,13 @@ export class MeldDiffSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl).setName('Saving').setHeading();
+		let delayEl: HTMLElement | null = null;
+		const showDelay = (enabled: boolean) => delayEl?.toggleClass('meld-setting-hidden', !enabled);
 		this.toggle(containerEl, 'Autosave after edits', 'Off by default. Saves an existing file after you stop typing.', this.plugin.settings.autosave, (value) => {
 			this.plugin.settings.autosave = value;
+			showDelay(value);
 		}, false);
-		new Setting(containerEl)
+		const delay = new Setting(containerEl)
 			.setName('Autosave delay (ms)')
 			.addText((text) => text
 				.setValue(String(this.plugin.settings.autosaveMs))
@@ -111,6 +114,8 @@ export class MeldDiffSettingTab extends PluginSettingTab {
 					this.plugin.settings.autosaveMs = clamp(Number(value), 100, 60000, 750);
 					void this.plugin.saveSettings(false);
 				}));
+		delayEl = delay.settingEl;
+		showDelay(this.plugin.settings.autosave);
 
 		new Setting(containerEl).setName('Advanced').setHeading();
 		new Setting(containerEl)
