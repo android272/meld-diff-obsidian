@@ -49,13 +49,34 @@ interface HunkShape {
 	top: number;
 }
 
+/**
+ * How far to pull the wave back from the text.
+ * With no gutter, 0 meets the highlight. With line numbers, the gutter's edge
+ * sits a fraction of a pixel into the highlight, so the same 0 overlaps and
+ * leaves a bright line. 0.25 keeps that case flush without opening a gap.
+ */
+function seamInset(view: EditorView): number {
+	const gutter = view.dom.querySelector('.cm-gutters');
+	if (!gutter) return 0;
+	return gutter.getBoundingClientRect().width >= 2 ? 0.25 : 0;
+}
+
 /** One filled bridge plus an outline that wraps both changed regions and the wave. */
-function hunkShape(l0: number, l1: number, r0: number, r1: number, yLT: number, yLB: number, yRT: number, yRB: number): HunkShape {
+function hunkShape(
+	l0: number,
+	l1: number,
+	r0: number,
+	r1: number,
+	yLT: number,
+	yLB: number,
+	yRT: number,
+	yRB: number,
+	insetLeft: number,
+	insetRight: number,
+): HunkShape {
 	const mid = (l1 + r0) / 2;
-	// Bleed a couple of pixels under each side so a scrollbar, border, or subpixel seam cannot show through.
-	const overlap = -0.25;
-	const fillL = l1 - overlap;
-	const fillR = r0 + overlap;
+	const fillL = l1 + insetLeft;
+	const fillR = r0 - insetRight;
 	const fill = `M ${fillL} ${yLT} L ${l1} ${yLT} C ${mid} ${yLT} ${mid} ${yRT} ${r0} ${yRT} L ${fillR} ${yRT} L ${fillR} ${yRB} L ${r0} ${yRB} C ${mid} ${yRB} ${mid} ${yLB} ${l1} ${yLB} L ${fillL} ${yLB} Z`;
 	const outline = `M ${l0} ${yLT} L ${l1} ${yLT} C ${mid} ${yLT} ${mid} ${yRT} ${r0} ${yRT} L ${r1} ${yRT} L ${r1} ${yRB} L ${r0} ${yRB} C ${mid} ${yRB} ${mid} ${yLB} ${l1} ${yLB} L ${l0} ${yLB} Z`;
 	return { fill, outline, top: Math.min(yLT, yRT) };
@@ -63,11 +84,13 @@ function hunkShape(l0: number, l1: number, r0: number, r1: number, yLT: number, 
 
 function textEdges(view: EditorView): { left: number; right: number } {
 	const scroller = view.scrollDOM;
-	const rect = scroller.getBoundingClientRect();
-	const gutter = view.dom.querySelector('.cm-gutters');
-	const left = gutter ? gutter.getBoundingClientRect().right : rect.left;
-	const right = rect.left + scroller.clientLeft + scroller.clientWidth;
-	return { left, right };
+	const scrollerRect = scroller.getBoundingClientRect();
+	const contentRect = view.contentDOM.getBoundingClientRect();
+	const innerLeft = scrollerRect.left + scroller.clientLeft;
+	const innerRight = innerLeft + scroller.clientWidth;
+	const left = Math.max(innerLeft, contentRect.left);
+	const right = Math.min(innerRight, contentRect.right);
+	return { left, right: Math.max(left + 1, right) };
 }
 
 /** Document Y of a hunk, in pixels below the link column's top. `documentTop` already includes the editor's 4px content padding. */
@@ -158,7 +181,18 @@ export class LinkMap {
 		model.chunks.forEach((chunk, index) => {
 			const left = hunkY(model.a, chunk.fromA, chunk.toA, columnRect.top);
 			const right = hunkY(model.b, chunk.fromB, chunk.toB, columnRect.top);
-			const shape = hunkShape(x(leftEdge.left), x(leftEdge.right), x(rightEdge.left), x(rightEdge.right), left.top, left.bottom, right.top, right.bottom);
+			const shape = hunkShape(
+				x(leftEdge.left),
+				x(leftEdge.right),
+				x(rightEdge.left),
+				x(rightEdge.right),
+				left.top,
+				left.bottom,
+				right.top,
+				right.bottom,
+				seamInset(model.a),
+				seamInset(model.b),
+			);
 			tops.push(shape.top);
 			const kind = chunkKind(chunk);
 			const fill = document.createElementNS(SVG_NS, 'path');

@@ -41,6 +41,7 @@ export interface MeldDiffSettings {
 	defaultLeftIsOriginal: boolean;
 	alignScroll: boolean;
 	showCurrentLine: boolean;
+	showLineNumbers: boolean;
 	wrapLines: boolean;
 	showIntraLine: boolean;
 	ribbonConflicts: boolean;

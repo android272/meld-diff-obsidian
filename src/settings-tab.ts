@@ -86,6 +86,9 @@ export class MeldDiffSettingTab extends PluginSettingTab {
 		this.toggle(containerEl, 'Show current line', 'Highlight the line the cursor is on.', this.plugin.settings.showCurrentLine, (value) => {
 			this.plugin.settings.showCurrentLine = value;
 		}, false);
+		this.toggle(containerEl, 'Show line numbers', '', this.plugin.settings.showLineNumbers, (value) => {
+			this.plugin.settings.showLineNumbers = value;
+		}, false);
 		this.toggle(containerEl, 'Text wrapping', '', this.plugin.settings.wrapLines, (value) => {
 			this.plugin.settings.wrapLines = value;
 		}, false);

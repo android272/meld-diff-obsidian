@@ -2,7 +2,7 @@ import { goToNextChunk, goToPreviousChunk, MergeView } from '@codemirror/merge';
 import { EditorView } from '@codemirror/view';
 import { Menu, Notice } from 'obsidian';
 import { setHoveredChunk } from './decorations';
-import { activeLineExtensions, createCompartments, paneExtensions, type PaneCompartments } from './editor-extensions';
+import { activeLineExtensions, createCompartments, lineNumberExtensions, paneExtensions, type PaneCompartments } from './editor-extensions';
 import { HUNK_ACTION_LABELS, applyHunkAction, chunkAtCursor, type HunkAction } from './hunk-actions';
 import { LinkMap } from './link-map';
 import type { RangeChunk } from './hunk-text';
@@ -18,6 +18,7 @@ export interface SurfacePane {
 export interface SurfaceOptions {
 	wrap: boolean;
 	showCurrentLine: boolean;
+	showLineNumbers: boolean;
 	highlight: boolean;
 	collapse: boolean;
 	collapseMargin: number;
@@ -59,6 +60,7 @@ export class DiffSurface {
 		this.options = {
 			wrap: true,
 			showCurrentLine: true,
+			showLineNumbers: true,
 			highlight: true,
 			collapse: false,
 			collapseMargin: 3,
@@ -96,7 +98,10 @@ export class DiffSurface {
 			if (!live) continue;
 			const effects = [];
 			if (partial.wrap !== undefined) effects.push(live.slots.wrap.reconfigure(wrapExt(this.options.wrap)));
-			if (partial.showCurrentLine !== undefined) effects.push(live.slots.activeLine.reconfigure(activeLineExtensions(this.options.showCurrentLine)));
+			if (partial.showLineNumbers !== undefined) effects.push(live.slots.lineNumbers.reconfigure(lineNumberExtensions(this.options.showLineNumbers)));
+			if (partial.showCurrentLine !== undefined || partial.showLineNumbers !== undefined) {
+				effects.push(live.slots.activeLine.reconfigure(activeLineExtensions(this.options.showCurrentLine, this.options.showLineNumbers)));
+			}
 			if (partial.dark !== undefined) effects.push(live.slots.dark.reconfigure(darkExt(this.options.dark)));
 			if (effects.length) live.view.dispatch({ effects });
 		}
@@ -224,6 +229,7 @@ export class DiffSurface {
 			path: pane.path,
 			wrap: this.options.wrap,
 			showCurrentLine: this.options.showCurrentLine,
+			showLineNumbers: this.options.showLineNumbers,
 			readOnly: pane.readOnly,
 			dark: this.options.dark,
 			tabSize: this.options.tabSize,

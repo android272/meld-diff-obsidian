@@ -19,23 +19,36 @@ export interface PaneKeymap {
 
 export interface PaneCompartments {
 	wrap: Compartment;
+	lineNumbers: Compartment;
 	activeLine: Compartment;
 	editable: Compartment;
 	dark: Compartment;
 }
 
 export function createCompartments(): PaneCompartments {
-	return { wrap: new Compartment(), activeLine: new Compartment(), editable: new Compartment(), dark: new Compartment() };
+	return {
+		wrap: new Compartment(),
+		lineNumbers: new Compartment(),
+		activeLine: new Compartment(),
+		editable: new Compartment(),
+		dark: new Compartment(),
+	};
 }
 
-export function activeLineExtensions(on: boolean): Extension {
-	return on ? [highlightActiveLine(), highlightActiveLineGutter()] : [];
+export function lineNumberExtensions(on: boolean): Extension {
+	return on ? lineNumbers() : [];
+}
+
+export function activeLineExtensions(showCurrent: boolean, showNumbers: boolean): Extension {
+	if (!showCurrent) return [];
+	return showNumbers ? [highlightActiveLine(), highlightActiveLineGutter()] : highlightActiveLine();
 }
 
 export function paneExtensions(options: {
 	path: string | null;
 	wrap: boolean;
 	showCurrentLine: boolean;
+	showLineNumbers: boolean;
 	readOnly: boolean;
 	dark: boolean;
 	tabSize: number;
@@ -45,8 +58,8 @@ export function paneExtensions(options: {
 }): Extension[] {
 	const { compartments: slots, keys } = options;
 	const extensions = [
-		lineNumbers(),
-		slots.activeLine.of(activeLineExtensions(options.showCurrentLine)),
+		slots.lineNumbers.of(lineNumberExtensions(options.showLineNumbers)),
+		slots.activeLine.of(activeLineExtensions(options.showCurrentLine, options.showLineNumbers)),
 		drawSelection(),
 		history(),
 		bracketMatching(),
@@ -78,7 +91,7 @@ export function paneExtensions(options: {
 			'.cm-gutters': {
 				backgroundColor: 'var(--background-secondary)',
 				color: 'var(--text-faint)',
-				borderRight: '1px solid var(--background-modifier-border)',
+				border: 'none',
 			},
 			'.cm-activeLine, .cm-activeLineGutter': {
 				backgroundColor: 'var(--background-modifier-hover)',

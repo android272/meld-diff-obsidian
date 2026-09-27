@@ -394,6 +394,10 @@
 	height: 12px;
 }
 
+.meld-diff-view .cm-gutters {
+	border: none !important;
+}
+
 .meld-diff-view .cm-line.meld-hunk-change {
 	background-color: color-mix(in srgb, var(--color-yellow) 22%, transparent) !important;
 }
