@@ -67,15 +67,23 @@ export class MeldDiffSettingTab extends PluginSettingTab {
 		this.toggle(containerEl, 'Status bar', 'Show the conflict count. Click it to open Conflict View.', this.plugin.settings.statusBarEnabled, (value) => {
 			this.plugin.settings.statusBarEnabled = value;
 		}, false);
+		let conflictRibbonEl: HTMLElement | null = null;
+		let diffRibbonEl: HTMLElement | null = null;
+		const showRibbonButtons = (enabled: boolean) => {
+			conflictRibbonEl?.toggleClass('meld-setting-hidden', !enabled);
+			diffRibbonEl?.toggleClass('meld-setting-hidden', !enabled);
+		};
 		this.toggle(containerEl, 'Ribbon icons', 'Master switch for both left-ribbon buttons.', this.plugin.settings.ribbonEnabled, (value) => {
 			this.plugin.settings.ribbonEnabled = value;
+			showRibbonButtons(value);
 		}, false);
-		this.toggle(containerEl, 'Conflicts ribbon button', '', this.plugin.settings.ribbonConflicts, (value) => {
+		conflictRibbonEl = this.toggle(containerEl, 'Conflicts ribbon button', '', this.plugin.settings.ribbonConflicts, (value) => {
 			this.plugin.settings.ribbonConflicts = value;
 		}, false);
-		this.toggle(containerEl, 'Diff ribbon button', '', this.plugin.settings.ribbonDiff, (value) => {
+		diffRibbonEl = this.toggle(containerEl, 'Diff ribbon button', '', this.plugin.settings.ribbonDiff, (value) => {
 			this.plugin.settings.ribbonDiff = value;
 		}, false);
+		showRibbonButtons(this.plugin.settings.ribbonEnabled);
 		this.toggle(containerEl, 'Original on the left', 'Conflict View opens the original on the left and the conflict on the right.', this.plugin.settings.defaultLeftIsOriginal, (value) => {
 			this.plugin.settings.defaultLeftIsOriginal = value;
 		}, false);
@@ -146,13 +154,14 @@ export class MeldDiffSettingTab extends PluginSettingTab {
 		this.containerEl.empty();
 	}
 
-	private toggle(container: HTMLElement, name: string, desc: string, value: boolean, apply: (value: boolean) => void, extras: boolean): void {
+	private toggle(container: HTMLElement, name: string, desc: string, value: boolean, apply: (value: boolean) => void, extras: boolean): HTMLElement {
 		const setting = new Setting(container).setName(name);
 		if (desc) setting.setDesc(desc);
 		setting.addToggle((toggle) => toggle.setValue(value).onChange((next) => {
 			apply(next);
 			void this.plugin.saveSettings(extras);
 		}));
+		return setting.settingEl;
 	}
 
 	private presetButton(parent: HTMLElement, label: string, create: () => ConflictPattern): void {

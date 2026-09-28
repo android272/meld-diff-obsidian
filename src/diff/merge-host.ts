@@ -1,7 +1,7 @@
 import { goToNextChunk, goToPreviousChunk, MergeView } from '@codemirror/merge';
 import { EditorView } from '@codemirror/view';
 import { Menu, Notice } from 'obsidian';
-import { setHoveredChunk } from './decorations';
+import { isMarkdownPath } from '../text-util';
 import { activeLineExtensions, createCompartments, lineNumberExtensions, paneExtensions, type PaneCompartments } from './editor-extensions';
 import { whitespaceExtensions } from './whitespace';
 import { HUNK_ACTION_LABELS, applyHunkAction, chunkAtCursor, type HunkAction } from './hunk-actions';
@@ -51,6 +51,7 @@ export class DiffSurface {
 	private options: SurfaceOptions;
 	private aligned = true;
 	private readOnly = { left: false, right: false };
+	private kinds: { left: boolean; right: boolean } | null = null;
 	private readonly root: HTMLElement;
 	private scrollCleanups: (() => void)[] = [];
 
@@ -75,18 +76,72 @@ export class DiffSurface {
 		};
 	}
 
+	/** Show a pair. Reuses the open editors when it can, and writes the new text into them. */
+	show(left: SurfacePane, right: SurfacePane, options: SurfaceOptions): void {
+		if (this.canReuse(left, right, options) && this.merge && this.left && this.right) {
+			this.options = options;
+			this.aligned = options.aligned;
+			this.readOnly = { left: left.readOnly, right: right.readOnly };
+			this.root.toggleClass('is-aligned', options.aligned);
+			this.merge.reconfigure({
+				highlightChanges: options.highlight,
+				gutter: false,
+				collapseUnchanged: options.collapse ? { margin: options.collapseMargin } : undefined,
+				diffConfig: { scanLimit: options.scanLimit },
+			});
+			this.replaceSide(this.left, left);
+			this.replaceSide(this.right, right);
+			this.handlers.onChunks(this.merge.chunks.length);
+			this.link?.schedule();
+			return;
+		}
+		this.set(left, right, options);
+	}
+
 	set(left: SurfacePane, right: SurfacePane, options: SurfaceOptions): void {
-		this.destroyEditors();
+		try {
+			this.destroyEditors();
+		} catch (error) {
+			console.error('Meld Diff: could not close the editors', error);
+			this.merge = null;
+			this.left = null;
+			this.right = null;
+			this.link = null;
+		}
 		this.options = options;
 		this.aligned = options.aligned;
 		this.readOnly = { left: left.readOnly, right: right.readOnly };
+		this.kinds = { left: isMarkdownPath(left.path), right: isMarkdownPath(right.path) };
 		this.root.toggleClass('is-aligned', options.aligned);
 		this.root.empty();
 		if (!left.placeholder && !right.placeholder) {
 			this.mountMerge(left, right);
 			return;
 		}
+		this.kinds = null;
 		this.mountSplit(left, right);
+	}
+
+	private canReuse(left: SurfacePane, right: SurfacePane, options: SurfaceOptions): boolean {
+		if (!this.merge || !this.left || !this.right || !this.kinds) return false;
+		if (left.placeholder || right.placeholder) return false;
+		if (options.scanLimit !== this.options.scanLimit) return false;
+		return this.kinds.left === isMarkdownPath(left.path) && this.kinds.right === isMarkdownPath(right.path);
+	}
+
+	private replaceSide(live: LiveEditor, pane: SurfacePane): void {
+		const view = live.view;
+		const editable = live.slots.editable.reconfigure(EditorView.editable.of(!pane.readOnly));
+		const current = view.state.doc.toString();
+		if (current === pane.text) {
+			view.dispatch({ effects: editable });
+			return;
+		}
+		view.dispatch({
+			changes: { from: 0, to: view.state.doc.length, insert: pane.text },
+			effects: editable,
+			userEvent: 'meld.load',
+		});
 	}
 
 	reconfigure(partial: Partial<SurfaceOptions>): void {
@@ -191,7 +246,6 @@ export class DiffSurface {
 		else editors?.appendChild(column);
 		this.link = new LinkMap(column, () => this.linkModel(), {
 			run: (action, chunk) => this.run(action, chunk),
-			hover: (index) => this.hover(index),
 			reveal: (chunk) => this.reveal(chunk),
 		});
 		column.addEventListener('meld-hunk-menu', (event) => {
@@ -315,18 +369,6 @@ export class DiffSurface {
 		view.dispatch({ selection: { anchor: Math.min(pos, view.state.doc.length) } });
 		this.scrollTo(view, pos);
 		view.focus();
-	}
-
-	private hover(index: number | null): void {
-		if (!this.merge) return;
-		const effect = setHoveredChunk.of(index);
-		for (const view of [this.merge.a, this.merge.b]) {
-			try {
-				view.dispatch({ effects: effect });
-			} catch (error) {
-				console.error('Meld Diff: hover update failed', error);
-			}
-		}
 	}
 
 	private run(action: HunkAction, chunk: RangeChunk): void {

@@ -15,6 +15,39 @@ function sameFolder(file: TFile, folder: string | undefined): boolean {
 	return parent.path === folder;
 }
 
+/**
+ * SuggestModal.selectSuggestion closes the modal before onChooseItem.
+ * Record the choice first, then resolve. A plain dismiss waits one turn
+ * so a choice later in the same call still wins.
+ */
+function choiceSlot<T>(resolve: (value: T | null) => void): {
+	accept: (value: T) => void;
+	close: () => void;
+} {
+	const slot = { chose: false, settled: false, pending: null as T | null };
+	const finish = () => {
+		if (slot.settled) return;
+		if (!slot.chose) {
+			queueMicrotask(() => {
+				if (slot.settled) return;
+				slot.settled = true;
+				resolve(null);
+			});
+			return;
+		}
+		slot.settled = true;
+		resolve(slot.pending);
+	};
+	return {
+		accept(value: T) {
+			slot.chose = true;
+			slot.pending = value;
+			finish();
+		},
+		close: finish,
+	};
+}
+
 export function pickVaultFile(app: App, placeholder: string, boostFolder?: string): Promise<string | null> {
 	return new Promise((resolve) => {
 		const modal = new FileSuggestModal(app, placeholder, boostFolder, resolve);
@@ -23,15 +56,16 @@ export function pickVaultFile(app: App, placeholder: string, boostFolder?: strin
 }
 
 class FileSuggestModal extends FuzzySuggestModal<TFile | string> {
-	private chose = false;
+	private readonly choice: ReturnType<typeof choiceSlot<string>>;
 
 	constructor(
 		app: App,
 		placeholder: string,
 		private readonly boostFolder: string | undefined,
-		private readonly resolve: (path: string | null) => void,
+		resolve: (path: string | null) => void,
 	) {
 		super(app);
+		this.choice = choiceSlot(resolve);
 		this.setPlaceholder(placeholder);
 		this.setInstructions([
 			{ command: '↑↓', purpose: 'to navigate' },
@@ -69,14 +103,21 @@ class FileSuggestModal extends FuzzySuggestModal<TFile | string> {
 		super.renderSuggestion(match, el);
 	}
 
+	selectSuggestion(item: FuzzyMatch<TFile | string>, evt: MouseEvent | KeyboardEvent): void {
+		const chosen = item?.item;
+		if (typeof chosen === 'string' || chosen instanceof TFile) {
+			this.choice.accept(typeof chosen === 'string' ? chosen : chosen.path);
+		}
+		super.selectSuggestion(item, evt);
+	}
+
 	onChooseItem(item: TFile | string): void {
-		this.chose = true;
-		this.resolve(typeof item === 'string' ? item : item.path);
+		this.choice.accept(typeof item === 'string' ? item : item.path);
 	}
 
 	onClose(): void {
 		super.onClose();
-		if (!this.chose) this.resolve(null);
+		this.choice.close();
 	}
 }
 
@@ -88,10 +129,11 @@ export function pickConflictFile(app: App, conflicts: ConflictFile[]): Promise<C
 }
 
 class ConflictSuggestModal extends FuzzySuggestModal<ConflictFile> {
-	private chose = false;
+	private readonly choice: ReturnType<typeof choiceSlot<ConflictFile>>;
 
-	constructor(app: App, private readonly conflicts: ConflictFile[], private readonly resolve: (file: ConflictFile | null) => void) {
+	constructor(app: App, private readonly conflicts: ConflictFile[], resolve: (file: ConflictFile | null) => void) {
 		super(app);
+		this.choice = choiceSlot(resolve);
 		this.setPlaceholder('Choose a conflict file');
 	}
 
@@ -104,14 +146,18 @@ class ConflictSuggestModal extends FuzzySuggestModal<ConflictFile> {
 		return when ? `${item.path} ${when}` : item.path;
 	}
 
+	selectSuggestion(item: FuzzyMatch<ConflictFile>, evt: MouseEvent | KeyboardEvent): void {
+		if (item?.item) this.choice.accept(item.item);
+		super.selectSuggestion(item, evt);
+	}
+
 	onChooseItem(item: ConflictFile): void {
-		this.chose = true;
-		this.resolve(item);
+		this.choice.accept(item);
 	}
 
 	onClose(): void {
 		super.onClose();
-		if (!this.chose) this.resolve(null);
+		this.choice.close();
 	}
 }
 
@@ -123,10 +169,11 @@ export function pickFolder(app: App, placeholder: string): Promise<TFolder | nul
 }
 
 class FolderSuggestModal extends FuzzySuggestModal<TFolder> {
-	private chose = false;
+	private readonly choice: ReturnType<typeof choiceSlot<TFolder>>;
 
-	constructor(app: App, placeholder: string, private readonly resolve: (folder: TFolder | null) => void) {
+	constructor(app: App, placeholder: string, resolve: (folder: TFolder | null) => void) {
 		super(app);
+		this.choice = choiceSlot(resolve);
 		this.setPlaceholder(placeholder);
 	}
 
@@ -146,13 +193,17 @@ class FolderSuggestModal extends FuzzySuggestModal<TFolder> {
 		return folder.isRoot() ? '/' : folder.path;
 	}
 
+	selectSuggestion(item: FuzzyMatch<TFolder>, evt: MouseEvent | KeyboardEvent): void {
+		if (item?.item) this.choice.accept(item.item);
+		super.selectSuggestion(item, evt);
+	}
+
 	onChooseItem(folder: TFolder): void {
-		this.chose = true;
-		this.resolve(folder);
+		this.choice.accept(folder);
 	}
 
 	onClose(): void {
 		super.onClose();
-		if (!this.chose) this.resolve(null);
+		this.choice.close();
 	}
 }

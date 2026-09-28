@@ -21,7 +21,6 @@ interface LinkModel {
 
 export interface LinkMapActions {
 	run: (action: HunkAction, chunk: RangeChunk) => void;
-	hover: (index: number | null) => void;
 	reveal: (chunk: RangeChunk) => void;
 }
 
@@ -98,6 +97,12 @@ function hunkY(view: EditorView, from: number, to: number, columnTop: number): {
 	const block = span(view, from, to);
 	const origin = view.documentTop - columnTop;
 	return { top: origin + block.top, bottom: origin + block.bottom };
+}
+
+/** Pin a hunk's buttons to the top of the visible column only while some of that hunk is still on screen. */
+function pinnedButtonTop(hunkTop: number, hunkBottom: number): number | null {
+	if (hunkBottom <= 0) return null;
+	return Math.max(0, hunkTop);
 }
 
 function actionFor(mode: ModifierMode, dir: 'left' | 'right', where: 'above' | 'below'): HunkAction {
@@ -177,8 +182,8 @@ export class LinkMap {
 		this.svg.setAttribute('width', String(svgWidth));
 		this.svg.setAttribute('height', String(height));
 		this.svg.setAttribute('viewBox', `0 0 ${svgWidth} ${height}`);
-		const tops: number[] = [];
-		model.chunks.forEach((chunk, index) => {
+		const anchors: Array<{ top: number; bottom: number }> = [];
+		model.chunks.forEach((chunk) => {
 			const left = hunkY(model.a, chunk.fromA, chunk.toA, columnRect.top);
 			const right = hunkY(model.b, chunk.fromB, chunk.toB, columnRect.top);
 			const shape = hunkShape(
@@ -193,7 +198,7 @@ export class LinkMap {
 				seamInset(model.a),
 				seamInset(model.b),
 			);
-			tops.push(shape.top);
+			anchors.push({ top: shape.top, bottom: Math.max(left.bottom, right.bottom) });
 			const kind = chunkKind(chunk);
 			const fill = document.createElementNS(SVG_NS, 'path');
 			fill.setAttribute('d', shape.fill);
@@ -204,7 +209,6 @@ export class LinkMap {
 			const markHot = (hot: boolean) => {
 				fill.classList.toggle('is-hot', hot);
 				outline.classList.toggle('is-hot', hot);
-				this.actions.hover(hot ? index : null);
 			};
 			fill.addEventListener('mouseenter', () => markHot(true));
 			fill.addEventListener('mouseleave', () => markHot(false));
@@ -220,7 +224,7 @@ export class LinkMap {
 			});
 			this.svg.append(fill, outline);
 		});
-		this.renderButtons(tops);
+		this.renderButtons(anchors);
 	}
 
 	destroy(): void {
@@ -243,32 +247,35 @@ export class LinkMap {
 		this.host.style.height = '';
 	}
 
-	private renderButtons(tops: readonly number[] = []): void {
+	private renderButtons(anchors: readonly { top: number; bottom: number }[] = []): void {
 		const model = this.model();
 		this.buttons.replaceChildren();
 		if (!model) return;
 		model.chunks.forEach((chunk, index) => {
+			const anchor = anchors[index];
+			const top = anchor ? pinnedButtonTop(anchor.top, anchor.bottom) : null;
+			if (top === null) return;
 			const row = document.createElement('div');
 			row.className = 'meld-hunk-buttons';
-			row.style.top = `${Math.max(0, tops[index] ?? 0)}px`;
+			row.style.top = `${top}px`;
 			const dirs: Array<'left' | 'right'> = ['left', 'right'];
 			if (this.mode === 'insert') {
 				for (const dir of dirs) {
 					const stack = document.createElement('div');
 					stack.className = 'meld-hunk-stack';
 					for (const where of ['above', 'below'] as const) {
-						stack.appendChild(this.makeButton(dir, where, chunk, index));
+						stack.appendChild(this.makeButton(dir, where, chunk));
 					}
 					row.appendChild(stack);
 				}
 			} else {
-				for (const dir of dirs) row.appendChild(this.makeButton(dir, 'above', chunk, index));
+				for (const dir of dirs) row.appendChild(this.makeButton(dir, 'above', chunk));
 			}
 			this.buttons.appendChild(row);
 		});
 	}
 
-	private makeButton(dir: 'left' | 'right', where: 'above' | 'below', chunk: RangeChunk, index: number): HTMLButtonElement {
+	private makeButton(dir: 'left' | 'right', where: 'above' | 'below', chunk: RangeChunk): HTMLButtonElement {
 		const button = document.createElement('button');
 		button.type = 'button';
 		button.className = 'meld-hunk-button clickable-icon';
@@ -286,8 +293,6 @@ export class LinkMap {
 			event.preventDefault();
 			event.stopPropagation();
 		});
-		button.addEventListener('mouseenter', () => this.actions.hover(index));
-		button.addEventListener('mouseleave', () => this.actions.hover(null));
 		button.addEventListener('click', (event) => {
 			event.preventDefault();
 			event.stopPropagation();

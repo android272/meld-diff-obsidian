@@ -1,35 +1,11 @@
-import { RangeSetBuilder, StateEffect, StateField } from '@codemirror/state';
+import { RangeSetBuilder } from '@codemirror/state';
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view';
 import { getChunks } from '@codemirror/merge';
 import { chunkKind } from './hunk-text';
 
-export const setHoveredChunk = StateEffect.define<number | null>();
-
-export const hoveredChunkField = StateField.define<number | null>({
-	create() {
-		return null;
-	},
-	update(value, transaction) {
-		let next = value;
-		for (const effect of transaction.effects) {
-			if (effect.is(setHoveredChunk)) next = effect.value;
-		}
-		if (transaction.docChanged && next !== null) {
-			const still = transaction.effects.some((effect) => effect.is(setHoveredChunk));
-			if (!still) return null;
-		}
-		return next;
-	},
-});
-
-function lineClass(kind: string, hot: boolean): string {
-	return hot ? `meld-hunk-${kind} meld-hunk-hot` : `meld-hunk-${kind}`;
-}
-
 function buildDecorations(view: EditorView): DecorationSet {
 	const info = getChunks(view.state);
 	if (!info) return Decoration.none;
-	const hover = view.state.field(hoveredChunkField, false) ?? null;
 	const builder = new RangeSetBuilder<Decoration>();
 	const doc = view.state.doc;
 	for (let index = 0; index < info.chunks.length; index++) {
@@ -38,7 +14,7 @@ function buildDecorations(view: EditorView): DecorationSet {
 		const from = info.side === 'b' ? chunk.fromB : chunk.fromA;
 		const to = info.side === 'b' ? chunk.toB : chunk.toA;
 		if (from === to || from > doc.length) continue;
-		const deco = Decoration.line({ class: lineClass(chunkKind(chunk), hover === index) });
+		const deco = Decoration.line({ class: `meld-hunk-${chunkKind(chunk)}` });
 		const limit = Math.min(Math.max(from, to), doc.length);
 		let pos = Math.max(0, Math.min(from, doc.length));
 		while (pos < limit) {
@@ -74,5 +50,5 @@ const chunkDecorations = ViewPlugin.fromClass(
 );
 
 export function chunkDecorationExtensions() {
-	return [hoveredChunkField, chunkDecorations];
+	return [chunkDecorations];
 }

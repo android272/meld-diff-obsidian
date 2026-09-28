@@ -230,18 +230,22 @@ export class DiffView extends ItemView {
 		if (prompt && right !== this.sides.right.path && !(await this.confirmReplace('right'))) return;
 		const token = ++this.loadToken;
 		this.loading = true;
-		const nextLeft = await this.readSide(left);
-		if (token !== this.loadToken) return;
-		const nextRight = await this.readSide(right);
-		if (token !== this.loadToken) return;
-		this.sides.left = nextLeft;
-		this.sides.right = nextRight;
-		this.wasIdentical = nextLeft.text === nextRight.text;
-		this.loadedKey = key;
-		this.loading = false;
-		this.mount();
-		this.renderChrome();
-		this.refreshTitle();
+		try {
+			const nextLeft = await this.readSide(left);
+			if (token !== this.loadToken) return;
+			const nextRight = await this.readSide(right);
+			if (token !== this.loadToken) return;
+			this.sides.left = nextLeft;
+			this.sides.right = nextRight;
+			this.wasIdentical = nextLeft.text === nextRight.text;
+			this.loadedKey = key;
+			this.mount();
+			this.renderChrome();
+			this.refreshTitle();
+			this.app.workspace.requestSaveLayout();
+		} finally {
+			if (token === this.loadToken) this.loading = false;
+		}
 	}
 
 	handleDelete(path: string): void {
@@ -376,10 +380,16 @@ export class DiffView extends ItemView {
 
 	private mount(): void {
 		if (!this.surface) return;
-		const options = this.surfaceOptions();
-		this.appliedScan = options.scanLimit;
-		this.surface.set(this.toPane('left'), this.toPane('right'), options);
-		this.renderBanners();
+		const wasLoading = this.loading;
+		this.loading = true;
+		try {
+			const options = this.surfaceOptions();
+			this.appliedScan = options.scanLimit;
+			this.surface.show(this.toPane('left'), this.toPane('right'), options);
+			this.renderBanners();
+		} finally {
+			this.loading = wasLoading;
+		}
 	}
 
 	private toPane(side: Side): SurfacePane {

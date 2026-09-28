@@ -173,6 +173,12 @@
 
 .meld-diff-view {
 	container-type: inline-size;
+	--meld-both: var(--interactive-accent);
+	--meld-one: var(--color-green);
+	--meld-one: oklch(from var(--interactive-accent) l c calc(h + 140));
+	/* Character marks sit on top of the block tint, so they use a lighter step of the accent. */
+	--meld-char: var(--interactive-accent);
+	--meld-char: oklch(from var(--interactive-accent) min(0.86, calc(l + 0.3)) calc(c * 0.8) h);
 }
 
 .meld-diff-header {
@@ -303,7 +309,7 @@
 	height: 100%;
 	align-self: flex-start;
 	overflow: visible;
-	background: var(--background-primary);
+	background: var(--background-secondary);
 }
 
 .meld-link-svg {
@@ -335,27 +341,21 @@
 }
 
 .meld-wave-change {
-	fill: color-mix(in srgb, var(--color-yellow) 22%, transparent);
+	fill: color-mix(in srgb, var(--meld-both) 22%, transparent);
 }
 
-.meld-wave-insert {
-	fill: color-mix(in srgb, var(--color-green) 18%, transparent);
-}
-
+.meld-wave-insert,
 .meld-wave-delete {
-	fill: color-mix(in srgb, var(--color-red) 18%, transparent);
+	fill: color-mix(in srgb, var(--meld-one) 18%, transparent);
 }
 
 .meld-hunk-outline-change {
-	stroke: color-mix(in srgb, var(--color-yellow) 78%, transparent);
+	stroke: color-mix(in srgb, var(--meld-both) 78%, transparent);
 }
 
-.meld-hunk-outline-insert {
-	stroke: color-mix(in srgb, var(--color-green) 72%, transparent);
-}
-
+.meld-hunk-outline-insert,
 .meld-hunk-outline-delete {
-	stroke: color-mix(in srgb, var(--color-red) 72%, transparent);
+	stroke: color-mix(in srgb, var(--meld-one) 72%, transparent);
 }
 
 .meld-wave.is-hot,
@@ -369,7 +369,7 @@
 	right: 0;
 	display: flex;
 	justify-content: center;
-	gap: 1px;
+	gap: 2px;
 	pointer-events: auto;
 	z-index: 2;
 }
@@ -377,11 +377,12 @@
 .meld-hunk-stack {
 	display: flex;
 	flex-direction: column;
+	gap: 2px;
 }
 
-.meld-hunk-button {
-	width: 14px;
-	height: 14px;
+.meld-diff-view .meld-hunk-button {
+	width: 22px;
+	height: 22px;
 	padding: 0;
 	display: flex;
 	align-items: center;
@@ -389,9 +390,9 @@
 	pointer-events: auto;
 }
 
-.meld-hunk-button svg {
-	width: 12px;
-	height: 12px;
+.meld-diff-view .meld-hunk-button svg {
+	width: 16px;
+	height: 16px;
 }
 
 .meld-diff-view .cm-gutters {
@@ -439,23 +440,16 @@
 }
 
 .meld-diff-view .cm-line.meld-hunk-change {
-	background-color: color-mix(in srgb, var(--color-yellow) 22%, transparent) !important;
+	background-color: color-mix(in srgb, var(--meld-both) 22%, transparent) !important;
 }
 
-.meld-diff-view .cm-line.meld-hunk-insert {
-	background-color: color-mix(in srgb, var(--color-green) 18%, transparent) !important;
-}
-
+.meld-diff-view .cm-line.meld-hunk-insert,
 .meld-diff-view .cm-line.meld-hunk-delete {
-	background-color: color-mix(in srgb, var(--color-red) 18%, transparent) !important;
-}
-
-.meld-diff-view .cm-line.meld-hunk-hot {
-	box-shadow: inset 0 0 0 1px var(--interactive-accent);
+	background-color: color-mix(in srgb, var(--meld-one) 18%, transparent) !important;
 }
 
 .meld-diff-view .cm-changedText {
-	background: color-mix(in srgb, var(--color-orange) 35%, transparent) !important;
+	background: color-mix(in srgb, var(--meld-char) 55%, transparent) !important;
 }
 
 .meld-diff-view .cm-scroller {
