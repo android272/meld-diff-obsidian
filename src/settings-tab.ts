@@ -103,7 +103,7 @@ export class MeldDiffSettingTab extends PluginSettingTab {
 		this.toggle(containerEl, 'Text wrapping', '', this.plugin.settings.wrapLines, (value) => {
 			this.plugin.settings.wrapLines = value;
 		}, false);
-		this.toggle(containerEl, 'Highlight changes inside a line', 'Color the characters and punctuation that differ, not only the whole line.', this.plugin.settings.showIntraLine, (value) => {
+		this.toggle(containerEl, 'Highlight changes inside a line', 'Color the characters that differ when both sides have text. Lines that exist on only one side stay unmarked.', this.plugin.settings.showIntraLine, (value) => {
 			this.plugin.settings.showIntraLine = value;
 		}, false);
 		this.toggle(containerEl, 'Collapse unchanged regions', '', this.plugin.settings.collapseUnchanged, (value) => {

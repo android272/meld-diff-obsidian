@@ -258,7 +258,7 @@ export class LinkMap {
 			const row = document.createElement('div');
 			row.className = 'meld-hunk-buttons';
 			row.style.top = `${top}px`;
-			const dirs: Array<'left' | 'right'> = ['left', 'right'];
+			const dirs: Array<'left' | 'right'> = this.mode === 'delete' ? ['left', 'right'] : ['right', 'left'];
 			if (this.mode === 'insert') {
 				for (const dir of dirs) {
 					const stack = document.createElement('div');

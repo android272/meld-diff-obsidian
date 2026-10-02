@@ -176,7 +176,7 @@
 	--meld-both: var(--interactive-accent);
 	--meld-one: var(--color-green);
 	--meld-one: oklch(from var(--interactive-accent) l c calc(h + 140));
-	/* Character marks sit on top of the block tint, so they use a lighter step of the accent. */
+	/* Character marks sit on top of a both-sides block, so they use a lighter step of the accent. */
 	--meld-char: var(--interactive-accent);
 	--meld-char: oklch(from var(--interactive-accent) min(0.86, calc(l + 0.3)) calc(c * 0.8) h);
 }
@@ -450,6 +450,11 @@
 
 .meld-diff-view .cm-changedText {
 	background: color-mix(in srgb, var(--meld-char) 55%, transparent) !important;
+}
+
+.meld-diff-view .cm-line.meld-hunk-insert .cm-changedText,
+.meld-diff-view .cm-line.meld-hunk-delete .cm-changedText {
+	background: none !important;
 }
 
 .meld-diff-view .cm-scroller {
