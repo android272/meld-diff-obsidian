@@ -562,9 +562,13 @@ If either file looks binary (NUL in first 8KB, or extension in a denylist: `png 
 - Show a placeholder panel: filename, size, “Cannot text-diff this file.”
 - Conflict View still lists it and still offers Use original / Use conflict.
 
-### 6.10 Empty Diff View
+### 6.10 New diff is a blank unsaved comparison
 
-Opening Diff View with no files is valid. Pickers are empty; editors show a muted “Select a file”. This satisfies “preview whatever files they want.”
+A new Diff View is an unsaved comparison, not a note. No vault file is created. Tab title is `Diff`. Both pickers are empty. Both editors are empty, editable, and show a muted “Select a file or type”.
+
+This is the default diff editor case: the user may have no files yet. They can type on A, type on B, and see the live diff. They can then pick a vault file for either side. Picking a file loads it and replaces that side’s buffer. If that side is dirty, prompt Save / Discard / Cancel. There is nowhere to save a side until it has a file; the ⋮ Save item is disabled, and the caption says “Pick a file to save this side.”
+
+Commands and the ribbon that say “new diff” always create this blank tab, even if another Diff tab is already open. “Open diff” reveals the most recent Diff tab. Opening a conflict pair fills A and B from the setting; that is not a blank comparison.
 
 ---
 
@@ -647,8 +651,8 @@ Command names must start with `Meld Diff:` so they group in the Hotkeys pane.
 | `open-conflict-view-left` | Meld Diff: Open conflict view in left sidebar | `getLeftLeaf(false)` |
 | `open-conflict-view-right` | Meld Diff: Open conflict view in right sidebar | `getRightLeaf(false)` |
 | `toggle-conflict-view` | Meld Diff: Toggle conflict view | If a Conflict leaf is active, detach it; otherwise reveal-or-open |
-| `open-diff-view` | Meld Diff: Open diff view | Reveal most recent Diff View, else open empty Diff as a main tab |
-| `open-diff-view-new-tab` | Meld Diff: Open diff view in new tab | Always a new empty Diff tab |
+| `open-diff-view` | Meld Diff: Open diff view | Reveal most recent Diff View, else open a blank unsaved comparison as a main tab |
+| `open-diff-view-new-tab` | Meld Diff: New diff | Always a new blank unsaved comparison. Does not load a file. |
 | `open-diff-view-left` | Meld Diff: Open diff view in left sidebar | |
 | `open-diff-view-right` | Meld Diff: Open diff view in right sidebar | |
 | `toggle-diff-view` | Meld Diff: Toggle diff view | Same toggle pattern as conflicts |

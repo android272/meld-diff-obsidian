@@ -3,7 +3,7 @@ import { Compartment } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { Notice } from 'obsidian';
 import { isMarkdownPath } from '../text-util';
-import { activeLineExtensions, createCompartments, lineNumberExtensions, paneExtensions, type PaneCompartments } from './editor-extensions';
+import { activeLineExtensions, createCompartments, editorChromeEffects, lineNumberExtensions, paneExtensions, type PaneCompartments } from './editor-extensions';
 import { chunkAtCursor, applyHunkAction, type HunkAction } from './hunk-actions';
 import { hunkHasBothSides, type RangeChunk } from './hunk-text';
 import {
@@ -272,6 +272,7 @@ export class StackedHost {
 			showLineNumbers: this.options.showLineNumbers,
 			showWhitespace: this.options.showWhitespace,
 			readOnly: pane.readOnly,
+			emptyHint: pane.emptyHint,
 			dark: this.options.dark,
 			tabSize: this.options.tabSize,
 			useTab: this.options.useTab,
@@ -312,16 +313,16 @@ export class StackedHost {
 	}
 
 	private replaceSide(live: StackedPane, pane: SurfacePane): void {
-		const editable = live.slots.editable.reconfigure(EditorView.editable.of(!pane.readOnly));
+		const effects = editorChromeEffects(live.slots, pane.readOnly, pane.emptyHint);
 		const current = live.view.state.doc.toString();
 		if (current === pane.text) {
-			live.view.dispatch({ effects: editable });
+			live.view.dispatch({ effects });
 			return;
 		}
 		this.suppress = true;
 		live.view.dispatch({
 			changes: { from: 0, to: live.view.state.doc.length, insert: pane.text },
-			effects: editable,
+			effects,
 			userEvent: 'meld.load',
 		});
 		this.suppress = false;

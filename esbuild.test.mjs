@@ -8,6 +8,7 @@ await esbuild.build({
 		'tests/hunk-colors.test.ts',
 		'tests/mobile-model.test.ts',
 		'tests/original-side.test.ts',
+		'tests/blank-side.test.ts',
 	],
 	bundle: true,
 	platform: 'node',

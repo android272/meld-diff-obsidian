@@ -93,14 +93,15 @@ export function registerCommands(plugin: MeldDiffPlugin): void {
 		callback: () => { void plugin.openNextConflict(); },
 	});
 
-	const diffCommand = (id: string, name: string, run: (view: NonNullable<ReturnType<MeldDiffPlugin['getActiveDiffView']>>) => void) => {
+	type ActiveDiff = NonNullable<ReturnType<MeldDiffPlugin['getActiveDiffView']>>;
+	const diffCommand = (id: string, name: string, run: (view: ActiveDiff) => void, ready?: (view: ActiveDiff) => boolean) => {
 		plugin.addCommand({
 			id,
 			name,
 			hotkeys: [],
 			checkCallback: (checking) => {
 				const view = plugin.getActiveDiffView();
-				if (!view) return false;
+				if (!view || (ready && !ready(view))) return false;
 				if (!checking) run(view);
 				return true;
 			},
@@ -109,9 +110,9 @@ export function registerCommands(plugin: MeldDiffPlugin): void {
 	diffCommand('next-hunk', 'Meld Diff: Next change', (view) => view.nextHunk());
 	diffCommand('prev-hunk', 'Meld Diff: Previous change', (view) => view.prevHunk());
 	diffCommand('swap-sides', 'Meld Diff: Swap A and B', (view) => view.swap());
-	diffCommand('save-left', 'Meld Diff: Save file A', (view) => { void view.saveLeft(); });
-	diffCommand('save-right', 'Meld Diff: Save file B', (view) => { void view.saveRight(); });
-	diffCommand('save-both', 'Meld Diff: Save both files', (view) => { void view.saveBoth(); });
+	diffCommand('save-left', 'Meld Diff: Save file A', (view) => { void view.saveLeft(); }, (view) => view.canSaveSide('left'));
+	diffCommand('save-right', 'Meld Diff: Save file B', (view) => { void view.saveRight(); }, (view) => view.canSaveSide('right'));
+	diffCommand('save-both', 'Meld Diff: Save both files', (view) => { void view.saveBoth(); }, (view) => view.canSaveSide('left') || view.canSaveSide('right'));
 	diffCommand('pick-left-file', 'Meld Diff: Choose file A', (view) => { void view.pickLeft(); });
 	diffCommand('pick-right-file', 'Meld Diff: Choose file B', (view) => { void view.pickRight(); });
 	diffCommand('copy-hunk-to-left', 'Meld Diff: Replace A with B', (view) => view.runHunk('replace-left'));
@@ -164,7 +165,7 @@ function diffId(placement: Placement): string {
 function diffName(placement: Placement): string {
 	switch (placement) {
 		case 'reveal': return 'Meld Diff: Open diff view';
-		case 'tab': return 'Meld Diff: Open diff view in new tab';
+		case 'tab': return 'Meld Diff: New diff';
 		case 'left': return 'Meld Diff: Open diff view in left sidebar';
 		case 'right': return 'Meld Diff: Open diff view in right sidebar';
 		case 'toggle': return 'Meld Diff: Toggle diff view';

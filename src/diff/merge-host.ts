@@ -2,7 +2,7 @@ import { goToNextChunk, goToPreviousChunk, MergeView } from '@codemirror/merge';
 import { EditorView } from '@codemirror/view';
 import { Menu, Notice } from 'obsidian';
 import { isMarkdownPath } from '../text-util';
-import { activeLineExtensions, createCompartments, lineNumberExtensions, paneExtensions, type PaneCompartments } from './editor-extensions';
+import { activeLineExtensions, createCompartments, editorChromeEffects, lineNumberExtensions, paneExtensions, type PaneCompartments } from './editor-extensions';
 import { whitespaceExtensions } from './whitespace';
 import { HUNK_ACTION_LABELS, applyHunkAction, chunkAtCursor, type HunkAction } from './hunk-actions';
 import { LinkMap } from './link-map';
@@ -14,6 +14,8 @@ export interface SurfacePane {
 	readOnly: boolean;
 	placeholder: string | null;
 	detail: string;
+	/** Muted hint drawn in an empty editor. Null once that side has a file or any text. */
+	emptyHint: string | null;
 }
 
 export interface SurfaceOptions {
@@ -132,15 +134,15 @@ export class DiffSurface {
 
 	private replaceSide(live: LiveEditor, pane: SurfacePane): void {
 		const view = live.view;
-		const editable = live.slots.editable.reconfigure(EditorView.editable.of(!pane.readOnly));
+		const effects = editorChromeEffects(live.slots, pane.readOnly, pane.emptyHint);
 		const current = view.state.doc.toString();
 		if (current === pane.text) {
-			view.dispatch({ effects: editable });
+			view.dispatch({ effects });
 			return;
 		}
 		view.dispatch({
 			changes: { from: 0, to: view.state.doc.length, insert: pane.text },
-			effects: editable,
+			effects,
 			userEvent: 'meld.load',
 		});
 	}
@@ -291,6 +293,7 @@ export class DiffSurface {
 			showLineNumbers: this.options.showLineNumbers,
 			showWhitespace: this.options.showWhitespace,
 			readOnly: pane.readOnly,
+			emptyHint: pane.emptyHint,
 			dark: this.options.dark,
 			tabSize: this.options.tabSize,
 			useTab: this.options.useTab,

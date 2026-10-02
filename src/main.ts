@@ -134,7 +134,11 @@ export default class MeldDiffPlugin extends Plugin {
 	async openView(kind: 'conflict' | 'diff', placement: Placement): Promise<void> {
 		const phone = Platform.isMobile;
 		const opened = kind === 'diff'
-			? await this.openDiffLeaf({ placement, preferCenter: false })
+			? await this.openDiffLeaf({
+				placement,
+				preferCenter: false,
+				state: placement === 'tab' ? { leftPath: null, rightPath: null } : undefined,
+			})
 			: await openMeldView({
 				app: this.app,
 				viewType: CONFLICT_VIEW_TYPE,

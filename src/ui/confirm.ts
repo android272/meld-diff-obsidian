@@ -1,4 +1,5 @@
 import { App, Modal, Notice } from 'obsidian';
+import { SAVE_NEEDS_FILE } from '../diff/blank-side';
 
 function settle<T>(flag: { done: boolean }, resolve: (value: T) => void, value: T): void {
 	if (flag.done) return;
@@ -31,16 +32,25 @@ export function confirm(app: App, title: string, message: string): Promise<boole
 	});
 }
 
-export function askDirty(app: App, sideLabel: string): Promise<'save' | 'discard' | 'cancel'> {
+export function askDirty(app: App, sideLabel: string, canSave: boolean): Promise<'save' | 'discard' | 'cancel'> {
 	return new Promise((resolve) => {
 		const flag = { done: false };
 		const modal = new Modal(app);
 		modal.titleEl.setText(`${sideLabel} has unsaved edits`);
-		modal.contentEl.createEl('p', { text: 'Save the edits, discard them, or cancel and keep this file open.' });
+		modal.contentEl.createEl('p', {
+			text: canSave
+				? 'Save the edits, discard them, or cancel and keep this file open.'
+				: `${SAVE_NEEDS_FILE} Discard the edits, or cancel and keep them.`,
+		});
 		const row = modal.contentEl.createDiv({ cls: 'modal-button-container' });
 		const cancel = row.createEl('button', { text: 'Cancel' });
 		const discard = row.createEl('button', { text: 'Discard' });
-		const save = row.createEl('button', { text: 'Save', cls: 'mod-cta' });
+		const save = row.createEl('button', { text: 'Save', cls: canSave ? 'mod-cta' : '' });
+		save.disabled = !canSave;
+		if (!canSave) {
+			save.title = SAVE_NEEDS_FILE;
+			save.setAttribute('aria-label', SAVE_NEEDS_FILE);
+		}
 		cancel.addEventListener('click', () => {
 			settle(flag, resolve, 'cancel');
 			modal.close();
@@ -49,10 +59,12 @@ export function askDirty(app: App, sideLabel: string): Promise<'save' | 'discard
 			settle(flag, resolve, 'discard');
 			modal.close();
 		});
-		save.addEventListener('click', () => {
-			settle(flag, resolve, 'save');
-			modal.close();
-		});
+		if (canSave) {
+			save.addEventListener('click', () => {
+				settle(flag, resolve, 'save');
+				modal.close();
+			});
+		}
 		modal.onClose = () => {
 			modal.contentEl.empty();
 			settle(flag, resolve, 'cancel');

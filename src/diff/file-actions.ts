@@ -134,8 +134,4 @@ export function populateFileMenu(menu: Menu, app: App, file: TFile | null): void
 	menu.addItem((item) => item.setTitle('Delete').setIcon('trash').setWarning(true).onClick(() => { void trashWithConfirm(app, file); }));
 }
 
-export function showFileMenu(app: App, file: TFile | null, event: MouseEvent): void {
-	const menu = new Menu();
-	populateFileMenu(menu, app, file);
-	menu.showAtMouseEvent(event);
-}
+

@@ -1,8 +1,9 @@
 import { ItemView, Menu, Notice, Scope, TFile, setIcon, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
 import { DIFF_VIEW_TYPE, HARD_FILE_BYTES, WARN_FILE_BYTES } from '../constants';
-import { copyPlainText, openInNewTab, populateFileMenu, promptMove, promptRename, revealInNavigation, showFileMenu, trashWithConfirm } from '../diff/file-actions';
+import { copyPlainText, openInNewTab, populateFileMenu, promptMove, promptRename, revealInNavigation, trashWithConfirm } from '../diff/file-actions';
 import { pickVaultFile } from '../diff/file-suggest';
 import type { HunkAction } from '../diff/hunk-actions';
+import { SAVE_NEEDS_FILE, diffTabTitle, editorFace, sideHasFile, sideIsDirty, sidesToLoad } from '../diff/blank-side';
 import { DiffSurface, type SurfaceHandlers, type SurfaceOptions, type SurfacePane } from '../diff/merge-host';
 import { wantsMobileLayout } from '../diff/mobile-mode';
 import { barActions, buildSummary, cursorCaption } from '../diff/mobile-model';
@@ -52,6 +53,8 @@ export class DiffView extends ItemView {
 	private loading = false;
 	private loadToken = 0;
 	private loadedKey = '';
+	/** False until the first pair read. Later loads read only a side whose path changed. */
+	private pairLoaded = false;
 	private readonly modifyToken: Record<Side, number> = { left: 0, right: 0 };
 	private wasIdentical = false;
 	private prompting = false;
@@ -102,10 +105,11 @@ export class DiffView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		const left = fileName(this.sides.left.path);
-		const right = fileName(this.sides.right.path);
-		if (!left && !right) return 'Diff';
-		return `${left || 'Empty'} ↔ ${right || 'Empty'}`;
+		return diffTabTitle(this.sides.left.path, this.sides.right.path);
+	}
+
+	canSaveSide(side: Side): boolean {
+		return sideHasFile(this.sides[side]);
 	}
 
 	getState(): Record<string, unknown> {
@@ -182,12 +186,14 @@ export class DiffView extends ItemView {
 		this.leftLabel = this.fileButton(leftBar, 'left');
 		this.moreButton(leftBar, 'left');
 		this.leftSave = this.iconButton(leftBar, 'save', 'Save file A', () => { void this.save('left'); });
+		this.leftSave.addClass('meld-save');
 		this.iconButton(files, 'arrow-left-right', 'Swap A and B', () => this.swap());
 		const rightBar = files.createDiv({ cls: 'meld-file-bar' });
 		this.sideBadge(rightBar, 'B');
 		this.rightLabel = this.fileButton(rightBar, 'right');
 		this.moreButton(rightBar, 'right');
 		this.rightSave = this.iconButton(rightBar, 'save', 'Save file B', () => { void this.save('right'); });
+		this.rightSave.addClass('meld-save');
 		const tools = header.createDiv({ cls: 'meld-diff-tools' });
 		this.countEl = tools.createSpan({ cls: 'meld-change-count', text: 'Changes: 0' });
 		this.textButton(tools, 'Prev', 'Previous change', () => this.prevHunk());
@@ -313,7 +319,7 @@ export class DiffView extends ItemView {
 		menu.addItem((item) => item.setTitle('Copy all text').setIcon('copy').onClick(() => {
 			void copyPlainText(this.surface?.getText(side) ?? this.sides[side].text, 'file text');
 		}));
-		menu.addItem((item) => item.setTitle('Save this side').setIcon('save').onClick(() => { void this.save(side); }));
+		this.addSaveItem(menu, side);
 		menu.addItem((item) => item.setTitle('Swap with the other side').setIcon('arrow-left-right').onClick(() => this.swap()));
 		menu.addItem((item) => item.setTitle('Use this side').setIcon('replace').onClick(() => { void this.useSide(side); }));
 		if (target) menu.addItem((item) => item.setTitle('Trash this file').setIcon('trash').setWarning(true).onClick(() => { void trashWithConfirm(this.app, target); }));
@@ -420,20 +426,22 @@ export class DiffView extends ItemView {
 
 	async loadPair(left: string | null, right: string | null, prompt: boolean): Promise<void> {
 		const key = `${left ?? ''}\n${right ?? ''}`;
-		if (key === this.loadedKey) return;
+		if (this.pairLoaded && key === this.loadedKey) return;
+		const read = sidesToLoad(this.pairLoaded, this.sides.left.path, this.sides.right.path, left, right);
 		if (prompt && left !== this.sides.left.path && !(await this.confirmReplace('left'))) return;
 		if (prompt && right !== this.sides.right.path && !(await this.confirmReplace('right'))) return;
 		const token = ++this.loadToken;
 		this.loading = true;
 		try {
-			const nextLeft = await this.readSide(left);
+			const nextLeft = read.left ? await this.readSide(left) : this.sides.left;
 			if (token !== this.loadToken) return;
-			const nextRight = await this.readSide(right);
+			const nextRight = read.right ? await this.readSide(right) : this.sides.right;
 			if (token !== this.loadToken) return;
 			this.sides.left = nextLeft;
 			this.sides.right = nextRight;
 			this.wasIdentical = nextLeft.text === nextRight.text;
 			this.loadedKey = key;
+			this.pairLoaded = true;
 			this.mount();
 			this.renderChrome();
 			this.refreshTitle();
@@ -508,15 +516,15 @@ export class DiffView extends ItemView {
 
 	private async confirmReplace(side: Side): Promise<boolean> {
 		if (!this.isDirty(side)) return true;
-		const choice = await askDirty(this.app, `File ${this.sideName(side)}`);
+		const name = this.sideName(side);
+		const choice = await askDirty(this.app, sideHasFile(this.sides[side]) ? `File ${name}` : name, this.canSaveSide(side));
 		if (choice === 'cancel') return false;
 		if (choice === 'discard') return true;
 		return this.save(side);
 	}
 
 	private isDirty(side: Side): boolean {
-		const state = this.sides[side];
-		return !!state.path && !state.binary && !state.tooBig && state.text !== state.saved;
+		return sideIsDirty(this.sides[side]);
 	}
 
 	private async readSide(path: string | null): Promise<SideState> {
@@ -593,10 +601,8 @@ export class DiffView extends ItemView {
 
 	private toPane(side: Side): SurfacePane {
 		const state = this.sides[side];
-		if (!state.path) return { text: '', path: null, readOnly: true, placeholder: 'Select a file', detail: '' };
-		if (state.binary) return { text: '', path: state.path, readOnly: true, placeholder: 'Cannot text-diff this file.', detail: `${fileName(state.path)} · ${formatBytes(state.size)}` };
-		if (state.tooBig) return { text: '', path: state.path, readOnly: true, placeholder: 'This file is too large to text-diff.', detail: `${fileName(state.path)} · ${formatBytes(state.size)}` };
-		return { text: state.text, path: state.path, readOnly: state.deleted, placeholder: null, detail: '' };
+		const face = editorFace(state, `${fileName(state.path)} · ${formatBytes(state.size)}`);
+		return { path: state.path, ...face };
 	}
 
 	private onDoc(side: Side, text: string): void {
@@ -657,8 +663,9 @@ export class DiffView extends ItemView {
 
 	async save(side: Side): Promise<boolean> {
 		const state = this.sides[side];
-		if (!state.path) {
-			new Notice('Choose a file before saving.');
+		const path = state.path;
+		if (!path) {
+			new Notice(SAVE_NEEDS_FILE);
 			return false;
 		}
 		if (state.binary || state.tooBig) {
@@ -668,12 +675,12 @@ export class DiffView extends ItemView {
 		const text = this.surface?.getText(side) ?? state.text;
 		state.text = text;
 		try {
-			const existing = this.app.vault.getAbstractFileByPath(state.path);
+			const existing = this.app.vault.getAbstractFileByPath(path);
 			if (existing instanceof TFile) await this.app.vault.modify(existing, text);
 			else if (existing) {
 				new Notice('That path is a folder.');
 				return false;
-			} else await this.app.vault.create(state.path, text);
+			} else await this.app.vault.create(path, text);
 			state.saved = text;
 			state.deleted = false;
 			state.missing = false;
@@ -842,8 +849,18 @@ export class DiffView extends ItemView {
 
 	private updateToggles(): void {
 		const manualSave = !this.plugin.settings.autosave;
-		this.leftSave?.toggleClass('meld-save-hidden', !manualSave);
-		this.rightSave?.toggleClass('meld-save-hidden', !manualSave);
+		this.syncSaveButton(this.leftSave, 'left', manualSave);
+		this.syncSaveButton(this.rightSave, 'right', manualSave);
+	}
+
+	private syncSaveButton(button: HTMLButtonElement | null, side: Side, manualSave: boolean): void {
+		if (!button) return;
+		button.toggleClass('meld-save-hidden', !manualSave);
+		const enabled = this.canSaveSide(side);
+		button.disabled = !enabled;
+		const label = enabled ? `Save file ${this.sideName(side)}` : SAVE_NEEDS_FILE;
+		button.setAttribute('aria-label', label);
+		button.title = label;
 	}
 
 	private fileButton(parent: HTMLElement, side: Side): HTMLElement {
@@ -862,7 +879,11 @@ export class DiffView extends ItemView {
 		button.addEventListener('click', (event) => {
 			const path = this.sides[side].path;
 			const file = path ? this.app.vault.getAbstractFileByPath(path) : null;
-			showFileMenu(this.app, file instanceof TFile ? file : null, event);
+			const menu = new Menu();
+			this.addSaveItem(menu, side);
+			menu.addSeparator();
+			populateFileMenu(menu, this.app, file instanceof TFile ? file : null);
+			menu.showAtMouseEvent(event);
 		});
 	}
 
@@ -887,6 +908,17 @@ export class DiffView extends ItemView {
 		return button;
 	}
 
+	private addSaveItem(menu: Menu, side: Side): void {
+		menu.addItem((item) => {
+			item.setIcon('save');
+			if (!this.canSaveSide(side)) {
+				item.setTitle(disabledSaveTitle()).setDisabled(true);
+				return;
+			}
+			item.setTitle('Save').onClick(() => { void this.save(side); });
+		});
+	}
+
 	private addSideSubmenu(menu: Menu, title: string, side: Side): void {
 		menu.addItem((item) => {
 			item.setTitle(title).setIcon('file');
@@ -895,13 +927,32 @@ export class DiffView extends ItemView {
 			const file = path ? this.app.vault.getAbstractFileByPath(path) : null;
 			const target = file instanceof TFile ? file : null;
 			if (typeof anyItem.setSubmenu === 'function') {
-				populateFileMenu(anyItem.setSubmenu(), this.app, target);
+				const sub = anyItem.setSubmenu();
+				this.addSaveItem(sub, side);
+				sub.addSeparator();
+				populateFileMenu(sub, this.app, target);
 				return;
 			}
 			item.onClick((event) => {
-				if (event instanceof MouseEvent) showFileMenu(this.app, target, event);
+				if (!(event instanceof MouseEvent)) return;
+				const menu = new Menu();
+				this.addSaveItem(menu, side);
+				menu.addSeparator();
+				populateFileMenu(menu, this.app, target);
+				menu.showAtMouseEvent(event);
 			});
 		});
 	}
+}
+
+function disabledSaveTitle(): DocumentFragment {
+	const frag = document.createDocumentFragment();
+	const name = document.createElement('span');
+	name.textContent = 'Save';
+	const caption = document.createElement('span');
+	caption.className = 'meld-menu-caption';
+	caption.textContent = SAVE_NEEDS_FILE;
+	frag.append(name, caption);
+	return frag;
 }
 

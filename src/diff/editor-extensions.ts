@@ -3,7 +3,7 @@ import { bracketMatching, indentUnit } from '@codemirror/language';
 import { markdown } from '@codemirror/lang-markdown';
 import { highlightSelectionMatches, search, searchKeymap } from '@codemirror/search';
 import { Compartment, EditorState, Prec, type Extension } from '@codemirror/state';
-import { drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers } from '@codemirror/view';
+import { drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, placeholder } from '@codemirror/view';
 import { isMarkdownPath } from '../text-util';
 import { chunkDecorationExtensions } from './decorations';
 import { whitespaceExtensions } from './whitespace';
@@ -24,6 +24,7 @@ export interface PaneCompartments {
 	whitespace: Compartment;
 	activeLine: Compartment;
 	editable: Compartment;
+	hint: Compartment;
 	dark: Compartment;
 }
 
@@ -34,8 +35,20 @@ export function createCompartments(): PaneCompartments {
 		whitespace: new Compartment(),
 		activeLine: new Compartment(),
 		editable: new Compartment(),
+		hint: new Compartment(),
 		dark: new Compartment(),
 	};
+}
+
+export function emptyHintExtension(hint: string | null): Extension {
+	return hint ? placeholder(hint) : [];
+}
+
+export function editorChromeEffects(slots: PaneCompartments, readOnly: boolean, emptyHint: string | null) {
+	return [
+		slots.editable.reconfigure(EditorView.editable.of(!readOnly)),
+		slots.hint.reconfigure(emptyHintExtension(emptyHint)),
+	];
 }
 
 export function lineNumberExtensions(on: boolean): Extension {
@@ -54,6 +67,7 @@ export function paneExtensions(options: {
 	showLineNumbers: boolean;
 	showWhitespace: boolean;
 	readOnly: boolean;
+	emptyHint: string | null;
 	dark: boolean;
 	tabSize: number;
 	useTab: boolean;
@@ -82,6 +96,7 @@ export function paneExtensions(options: {
 		indentUnit.of(options.useTab ? '\t' : ' '.repeat(Math.max(1, options.tabSize))),
 		slots.wrap.of(options.wrap ? EditorView.lineWrapping : []),
 		slots.editable.of(EditorView.editable.of(!options.readOnly)),
+		slots.hint.of(emptyHintExtension(options.emptyHint)),
 		slots.dark.of(EditorView.darkTheme.of(options.dark)),
 		EditorView.contentAttributes.of({ spellcheck: 'true' }),
 		EditorView.theme({
