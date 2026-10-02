@@ -5,6 +5,7 @@ await esbuild.build({
 		'tests/patterns.test.ts',
 		'tests/groups.test.ts',
 		'tests/hunk-text.test.ts',
+		'tests/hunk-colors.test.ts',
 	],
 	bundle: true,
 	platform: 'node',

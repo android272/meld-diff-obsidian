@@ -1,3 +1,13 @@
+import {
+	BLOCK_OPACITY_DEFAULT,
+	BLOCK_OPACITY_MAX,
+	BLOCK_OPACITY_MIN,
+	normalizeHex,
+	quantizeOpacity,
+	TOKEN_OPACITY_DEFAULT,
+	TOKEN_OPACITY_MAX,
+	TOKEN_OPACITY_MIN,
+} from './diff/hunk-colors';
 import type { ConflictPattern, MeldDiffSettings } from './types';
 
 export const SYNCTHING_EXPRESSION = String.raw`^(?<dir>.*/)?(?<stem>[^/]+?)\.sync-conflict-(?<date>\d{8})-(?<time>\d{6})-(?<modifiedBy>[A-Za-z0-9]+)(?<ext>\.[^./]+)$`;
@@ -91,6 +101,13 @@ export const DEFAULT_SETTINGS: MeldDiffSettings = {
 	showIntraLine: true,
 	ribbonConflicts: true,
 	ribbonDiff: true,
+	colorSource: 'theme',
+	hunkDelete: '',
+	hunkInsert: '',
+	hunkChange: '',
+	hunkToken: '',
+	hunkOpacity: BLOCK_OPACITY_DEFAULT,
+	tokenOpacity: TOKEN_OPACITY_DEFAULT,
 };
 
 function asBoolean(value: unknown, fallback: boolean): boolean {
@@ -150,5 +167,12 @@ export function mergeSettings(raw: unknown): MeldDiffSettings {
 		showIntraLine: asBoolean(input.showIntraLine, DEFAULT_SETTINGS.showIntraLine),
 		ribbonConflicts: asBoolean(input.ribbonConflicts, DEFAULT_SETTINGS.ribbonConflicts),
 		ribbonDiff: asBoolean(input.ribbonDiff, DEFAULT_SETTINGS.ribbonDiff),
+		colorSource: input.colorSource === 'custom' ? 'custom' : 'theme',
+		hunkDelete: normalizeHex(input.hunkDelete),
+		hunkInsert: normalizeHex(input.hunkInsert),
+		hunkChange: normalizeHex(input.hunkChange),
+		hunkToken: normalizeHex(input.hunkToken),
+		hunkOpacity: quantizeOpacity(asNumber(input.hunkOpacity, DEFAULT_SETTINGS.hunkOpacity, BLOCK_OPACITY_MIN, BLOCK_OPACITY_MAX)),
+		tokenOpacity: quantizeOpacity(asNumber(input.tokenOpacity, DEFAULT_SETTINGS.tokenOpacity, TOKEN_OPACITY_MIN, TOKEN_OPACITY_MAX)),
 	};
 }

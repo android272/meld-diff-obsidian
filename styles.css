@@ -171,14 +171,17 @@
 	margin-top: 8px;
 }
 
+body {
+	--meld-hunk-delete: var(--color-red, var(--text-error));
+	--meld-hunk-insert: var(--color-green, var(--text-success));
+	--meld-hunk-change: var(--color-yellow, var(--text-warning));
+	--meld-hunk-token: var(--color-orange, var(--text-warning));
+	--meld-hunk-block-opacity: 0.2;
+	--meld-hunk-token-opacity: 0.35;
+}
+
 .meld-diff-view {
 	container-type: inline-size;
-	--meld-both: var(--interactive-accent);
-	--meld-one: var(--color-green);
-	--meld-one: oklch(from var(--interactive-accent) l c calc(h + 140));
-	/* Character marks sit on top of a both-sides block, so they use a lighter step of the accent. */
-	--meld-char: var(--interactive-accent);
-	--meld-char: oklch(from var(--interactive-accent) min(0.86, calc(l + 0.3)) calc(c * 0.8) h);
 }
 
 .meld-diff-header {
@@ -341,21 +344,27 @@
 }
 
 .meld-wave-change {
-	fill: color-mix(in srgb, var(--meld-both) 22%, transparent);
+	fill: color-mix(in srgb, var(--meld-hunk-change) calc(var(--meld-hunk-block-opacity) * 100%), transparent);
 }
 
-.meld-wave-insert,
+.meld-wave-insert {
+	fill: color-mix(in srgb, var(--meld-hunk-insert) calc(var(--meld-hunk-block-opacity) * 100%), transparent);
+}
+
 .meld-wave-delete {
-	fill: color-mix(in srgb, var(--meld-one) 18%, transparent);
+	fill: color-mix(in srgb, var(--meld-hunk-delete) calc(var(--meld-hunk-block-opacity) * 100%), transparent);
 }
 
 .meld-hunk-outline-change {
-	stroke: color-mix(in srgb, var(--meld-both) 78%, transparent);
+	stroke: color-mix(in srgb, var(--meld-hunk-change) 78%, transparent);
 }
 
-.meld-hunk-outline-insert,
+.meld-hunk-outline-insert {
+	stroke: color-mix(in srgb, var(--meld-hunk-insert) 72%, transparent);
+}
+
 .meld-hunk-outline-delete {
-	stroke: color-mix(in srgb, var(--meld-one) 72%, transparent);
+	stroke: color-mix(in srgb, var(--meld-hunk-delete) 72%, transparent);
 }
 
 .meld-wave.is-hot,
@@ -440,16 +449,19 @@
 }
 
 .meld-diff-view .cm-line.meld-hunk-change {
-	background-color: color-mix(in srgb, var(--meld-both) 22%, transparent) !important;
+	background-color: color-mix(in srgb, var(--meld-hunk-change) calc(var(--meld-hunk-block-opacity) * 100%), transparent) !important;
 }
 
-.meld-diff-view .cm-line.meld-hunk-insert,
+.meld-diff-view .cm-line.meld-hunk-insert {
+	background-color: color-mix(in srgb, var(--meld-hunk-insert) calc(var(--meld-hunk-block-opacity) * 100%), transparent) !important;
+}
+
 .meld-diff-view .cm-line.meld-hunk-delete {
-	background-color: color-mix(in srgb, var(--meld-one) 18%, transparent) !important;
+	background-color: color-mix(in srgb, var(--meld-hunk-delete) calc(var(--meld-hunk-block-opacity) * 100%), transparent) !important;
 }
 
 .meld-diff-view .cm-changedText {
-	background: color-mix(in srgb, var(--meld-char) 55%, transparent) !important;
+	background: color-mix(in srgb, var(--meld-hunk-token) calc(var(--meld-hunk-token-opacity) * 100%), transparent) !important;
 }
 
 .meld-diff-view .cm-line.meld-hunk-insert .cm-changedText,
@@ -617,3 +629,66 @@
 		flex: 1 1 calc(100% - 120px);
 	}
 }
+
+/* @settings
+
+name: Meld Diff
+id: meld-diff
+settings:
+    -
+        id: meld-hunk-colors
+        title: Diff colors
+        type: heading
+        level: 2
+    -
+        id: meld-hunk-delete
+        title: Deleted (left only)
+        description: Left-only lines and their wave. Reset to follow the theme.
+        type: variable-color
+        opacity: false
+        format: hex
+        default: '#fb464c'
+    -
+        id: meld-hunk-insert
+        title: Added (right only)
+        description: Right-only lines and their wave. Reset to follow the theme.
+        type: variable-color
+        opacity: false
+        format: hex
+        default: '#44cf6e'
+    -
+        id: meld-hunk-change
+        title: Changed (both sides)
+        description: Lines on both sides and the wave between them. Reset to follow the theme.
+        type: variable-color
+        opacity: false
+        format: hex
+        default: '#e0de71'
+    -
+        id: meld-hunk-token
+        title: Changed characters
+        description: Characters that differ inside a change. Reset to follow the theme.
+        type: variable-color
+        opacity: false
+        format: hex
+        default: '#e9973f'
+    -
+        id: meld-hunk-block-opacity
+        title: Block opacity
+        description: Wash behind a whole hunk and its wave.
+        type: variable-number-slider
+        default: 0.2
+        min: 0.08
+        max: 0.45
+        step: 0.01
+    -
+        id: meld-hunk-token-opacity
+        title: Character opacity
+        description: Wash on characters that differ.
+        type: variable-number-slider
+        default: 0.35
+        min: 0.2
+        max: 0.6
+        step: 0.01
+
+*/

@@ -47,6 +47,14 @@ export interface MeldDiffSettings {
 	showIntraLine: boolean;
 	ribbonConflicts: boolean;
 	ribbonDiff: boolean;
+	/** Theme follows --color-red/green/yellow/orange. Custom uses the four hex fields. */
+	colorSource: 'theme' | 'custom';
+	hunkDelete: string;
+	hunkInsert: string;
+	hunkChange: string;
+	hunkToken: string;
+	hunkOpacity: number;
+	tokenOpacity: number;
 }
 
 export interface DiffViewState {

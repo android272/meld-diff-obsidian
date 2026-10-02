@@ -1,6 +1,13 @@
 import { Notice, Platform, Plugin, TFile, setIcon, type WorkspaceLeaf } from 'obsidian';
 import { registerCommands } from './commands';
 import { CONFLICT_VIEW_TYPE, DIFF_VIEW_TYPE } from './constants';
+import {
+	adoptHunkColorDeclarations,
+	meldColorDeclarations,
+	removeHunkColorStyle,
+	sameDeclarations,
+	writeHunkColorStyle,
+} from './diff/hunk-colors';
 import { ConflictIndex } from './index/conflict-index';
 import { registerMenus } from './menus';
 import { pickConflictFile, pickVaultFile } from './diff/file-suggest';
@@ -26,6 +33,8 @@ export default class MeldDiffPlugin extends Plugin {
 	private conflictRibbon: HTMLElement | null = null;
 	private diffRibbon: HTMLElement | null = null;
 	private nextCursor: string | null = null;
+	private styleSettingsBaselined = false;
+	private styleSettingsColors = new Map<string, string>();
 
 	async onload(): Promise<void> {
 		if (Platform.isMobile) return;
@@ -40,8 +49,18 @@ export default class MeldDiffPlugin extends Plugin {
 		this.mountRibbon();
 		this.status = new ConflictStatusBar(() => this.addStatusBarItem(), () => { void this.openView('conflict', 'reveal'); });
 		this.refreshStatus();
+		this.noteStyleSettingsColors();
+		this.pushHunkColors();
+		this.app.workspace.trigger('parse-style-settings');
 		this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf) => noteActivation(leaf)));
-		this.registerEvent(this.app.workspace.on('css-change', () => {
+		this.registerEvent(this.app.workspace.on('window-open', (_workspace, win) => {
+			writeHunkColorStyle(win.document, this.settings);
+		}));
+		this.registerEvent(this.app.workspace.on('css-change', (data?: { source?: string }) => {
+			if (data?.source === 'style-settings') {
+				this.adoptStyleSettingsColors();
+				return;
+			}
 			for (const view of this.diffViews()) view.onCssChange();
 		}));
 		this.registerEvent(this.app.vault.on('create', () => this.index.queue(true)));
@@ -65,6 +84,9 @@ export default class MeldDiffPlugin extends Plugin {
 	onunload(): void {
 		this.index?.dispose();
 		this.status?.unload();
+		if (!Platform.isMobile) {
+			for (const doc of this.colorDocuments()) removeHunkColorStyle(doc);
+		}
 	}
 
 	onSettings(listener: () => void): () => void {
@@ -72,8 +94,9 @@ export default class MeldDiffPlugin extends Plugin {
 		return () => this.settingsListeners.delete(listener);
 	}
 
-	async saveSettings(rescanExtras = false): Promise<void> {
+	async saveSettings(rescanExtras = false, applyColors = false): Promise<void> {
 		await this.saveData(this.settings);
+		if (applyColors) this.pushHunkColors();
 		this.syncRibbon();
 		this.refreshStatus();
 		this.index.queue(rescanExtras);
@@ -245,5 +268,43 @@ export default class MeldDiffPlugin extends Plugin {
 
 	private refreshStatus(): void {
 		this.status?.refresh(this.settings.statusBarEnabled, this.index.ready, this.index.conflictCount());
+	}
+
+	private colorDocuments(): Document[] {
+		const docs = new Set<Document>([document]);
+		this.app.workspace.iterateAllLeaves((leaf) => {
+			const owner = leaf.view?.containerEl?.ownerDocument;
+			if (owner) docs.add(owner);
+		});
+		return [...docs];
+	}
+
+	private pushHunkColors(): void {
+		for (const doc of this.colorDocuments()) writeHunkColorStyle(doc, this.settings);
+		this.noteStyleSettingsColors();
+	}
+
+	private noteStyleSettingsColors(): void {
+		const tag = document.getElementById('css-settings-manager');
+		this.styleSettingsBaselined = tag !== null;
+		this.styleSettingsColors = meldColorDeclarations(tag?.textContent ?? '');
+	}
+
+	private adoptStyleSettingsColors(): void {
+		const tag = document.getElementById('css-settings-manager');
+		const next = meldColorDeclarations(tag?.textContent ?? '');
+		if (!this.styleSettingsBaselined) {
+			this.styleSettingsBaselined = true;
+			this.styleSettingsColors = next;
+			return;
+		}
+		if (sameDeclarations(this.styleSettingsColors, next)) {
+			this.styleSettingsColors = next;
+			return;
+		}
+		const changed = adoptHunkColorDeclarations(this.settings, this.styleSettingsColors, next);
+		this.styleSettingsColors = next;
+		if (!changed) return;
+		void this.saveSettings(false, true);
 	}
 }

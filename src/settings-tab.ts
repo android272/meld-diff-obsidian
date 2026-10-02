@@ -1,4 +1,15 @@
 import { PluginSettingTab, Setting, type App } from 'obsidian';
+import {
+	BLOCK_OPACITY_DEFAULT,
+	BLOCK_OPACITY_MAX,
+	BLOCK_OPACITY_MIN,
+	normalizeHex,
+	themeSwatch,
+	TOKEN_OPACITY_DEFAULT,
+	TOKEN_OPACITY_MAX,
+	TOKEN_OPACITY_MIN,
+	type HunkColorSlot,
+} from './diff/hunk-colors';
 import type MeldDiffPlugin from './main';
 import { explainPattern } from './patterns';
 import { blankPreset, newId, nextcloudPreset, obsidianSyncPreset, syncthingPreset } from './settings';
@@ -120,6 +131,8 @@ export class MeldDiffSettingTab extends PluginSettingTab {
 					void this.plugin.saveSettings(false);
 				}));
 
+		this.renderDiffColors(containerEl);
+
 		new Setting(containerEl).setName('Saving').setHeading();
 		let delayEl: HTMLElement | null = null;
 		const showDelay = (enabled: boolean) => delayEl?.toggleClass('meld-setting-hidden', !enabled);
@@ -162,6 +175,105 @@ export class MeldDiffSettingTab extends PluginSettingTab {
 			void this.plugin.saveSettings(extras);
 		}));
 		return setting.settingEl;
+	}
+
+	private renderDiffColors(container: HTMLElement): void {
+		const settings = this.plugin.settings;
+		new Setting(container).setName('Diff colors').setHeading();
+		const pickerRows: HTMLElement[] = [];
+		const showPickers = (custom: boolean) => {
+			for (const row of pickerRows) row.toggleClass('meld-setting-hidden', !custom);
+		};
+		new Setting(container)
+			.setName('Color source')
+			.setDesc('Red is a deletion, green is an addition, yellow is a change on both sides, and orange marks the characters that differ. Theme follows the active theme. Custom uses one hex in light and dark. Style Settings writes these same colors, and the last change is saved here.')
+			.addDropdown((dropdown) => {
+				dropdown.addOption('theme', 'Theme colors');
+				dropdown.addOption('custom', 'Custom colors');
+				dropdown.setValue(settings.colorSource);
+				dropdown.onChange((value) => {
+					settings.colorSource = value === 'custom' ? 'custom' : 'theme';
+					if (settings.colorSource === 'custom') this.ensureCustomColors();
+					showPickers(settings.colorSource === 'custom');
+					void this.plugin.saveSettings(false, true);
+				});
+			});
+		pickerRows.push(this.colorPicker(container, 'Deleted (left only)', 'Left-only lines and their wave.', 'hunkDelete', 'delete'));
+		pickerRows.push(this.colorPicker(container, 'Added (right only)', 'Right-only lines and their wave.', 'hunkInsert', 'insert'));
+		pickerRows.push(this.colorPicker(container, 'Changed (both sides)', 'Both sides, and the wave between them.', 'hunkChange', 'change'));
+		pickerRows.push(this.colorPicker(container, 'Changed characters', 'Characters that differ inside a change. Ignored when highlighting inside a line is off.', 'hunkToken', 'token'));
+		showPickers(settings.colorSource === 'custom');
+		this.opacitySlider(container, 'Block opacity', 'Wash behind a whole hunk and its wave.', settings.hunkOpacity, BLOCK_OPACITY_MIN, BLOCK_OPACITY_MAX, (value) => {
+			settings.hunkOpacity = value;
+		});
+		this.opacitySlider(container, 'Character opacity', 'Wash on characters that differ. Ignored when highlighting inside a line is off.', settings.tokenOpacity, TOKEN_OPACITY_MIN, TOKEN_OPACITY_MAX, (value) => {
+			settings.tokenOpacity = value;
+		});
+		new Setting(container)
+			.setName('Reset colors')
+			.setDesc('Use theme colors again and restore the default opacities.')
+			.addButton((button) => button.setButtonText('Reset').onClick(() => {
+				settings.colorSource = 'theme';
+				settings.hunkOpacity = BLOCK_OPACITY_DEFAULT;
+				settings.tokenOpacity = TOKEN_OPACITY_DEFAULT;
+				void this.plugin.saveSettings(false, true);
+				this.display();
+			}));
+	}
+
+	private colorPicker(
+		container: HTMLElement,
+		name: string,
+		desc: string,
+		key: 'hunkDelete' | 'hunkInsert' | 'hunkChange' | 'hunkToken',
+		slot: HunkColorSlot,
+	): HTMLElement {
+		const settings = this.plugin.settings;
+		const shown = settings[key] || themeSwatch(this.containerEl.ownerDocument, slot);
+		const setting = new Setting(container)
+			.setName(name)
+			.setDesc(desc)
+			.addColorPicker((picker) => picker.setValue(shown).onChange((value) => {
+				settings[key] = normalizeHex(value) || shown;
+				settings.colorSource = 'custom';
+				void this.plugin.saveSettings(false, true);
+			}));
+		return setting.settingEl;
+	}
+
+	private ensureCustomColors(): void {
+		const settings = this.plugin.settings;
+		const doc = this.containerEl.ownerDocument;
+		const fill = (key: 'hunkDelete' | 'hunkInsert' | 'hunkChange' | 'hunkToken', slot: HunkColorSlot) => {
+			if (!settings[key]) settings[key] = themeSwatch(doc, slot);
+		};
+		fill('hunkDelete', 'delete');
+		fill('hunkInsert', 'insert');
+		fill('hunkChange', 'change');
+		fill('hunkToken', 'token');
+	}
+
+	private opacitySlider(
+		container: HTMLElement,
+		name: string,
+		desc: string,
+		value: number,
+		min: number,
+		max: number,
+		apply: (value: number) => void,
+	): void {
+		new Setting(container)
+			.setName(name)
+			.setDesc(desc)
+			.addSlider((slider) => slider
+				.setLimits(min, max, 0.01)
+				.setValue(value)
+				.setInstant(true)
+				.setDisplayFormat((next) => `${Math.round(next * 100)}%`)
+				.onChange((next) => {
+					apply(Math.round(next * 100) / 100);
+					void this.plugin.saveSettings(false, true);
+				}));
 	}
 
 	private presetButton(parent: HTMLElement, label: string, create: () => ConflictPattern): void {
