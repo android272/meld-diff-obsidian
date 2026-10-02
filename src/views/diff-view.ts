@@ -1,13 +1,17 @@
 import { ItemView, Menu, Notice, Scope, TFile, setIcon, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
 import { DIFF_VIEW_TYPE, HARD_FILE_BYTES, WARN_FILE_BYTES } from '../constants';
-import { populateFileMenu, showFileMenu } from '../diff/file-actions';
+import { copyPlainText, openInNewTab, populateFileMenu, promptMove, promptRename, revealInNavigation, showFileMenu, trashWithConfirm } from '../diff/file-actions';
 import { pickVaultFile } from '../diff/file-suggest';
 import type { HunkAction } from '../diff/hunk-actions';
-import { DiffSurface, type SurfaceOptions, type SurfacePane } from '../diff/merge-host';
+import { DiffSurface, type SurfaceHandlers, type SurfaceOptions, type SurfacePane } from '../diff/merge-host';
+import { armedCaption, barActions, buildSummary, idleCaption } from '../diff/mobile-model';
+import { wantsMobileLayout } from '../diff/mobile-mode';
+import { StackedHost } from '../diff/stacked-host';
 import type MeldDiffPlugin from '../main';
 import { fileName, formatBytes, isBinaryExtension, parentPath } from '../text-util';
 import { askDirty, confirm, noticeError } from '../ui/confirm';
 import type { DiffViewState } from '../types';
+import { MobileShell } from './mobile-shell';
 
 type Side = 'left' | 'right';
 
@@ -51,7 +55,10 @@ export class DiffView extends ItemView {
 	private wasIdentical = false;
 	private prompting = false;
 	private appliedScan = 0;
-	private surface: DiffSurface | null = null;
+	private surface: DiffSurface | StackedHost | null = null;
+	private shell: MobileShell | null = null;
+	private mobile = false;
+	private keyboardBound = false;
 	private countEl: HTMLElement | null = null;
 	private bannerEl: HTMLElement | null = null;
 	private leftLabel: HTMLElement | null = null;
@@ -117,8 +124,53 @@ export class DiffView extends ItemView {
 	}
 
 	async onOpen(): Promise<void> {
+		this.mobile = wantsMobileLayout(this.plugin.settings);
+		this.bindKeyboard();
+		this.register(this.plugin.onSettings(() => this.applySettings()));
+		this.buildShell();
+		this.opened = true;
+		this.updateToggles();
+		await this.loadPair(this.sides.left.path, this.sides.right.path, false);
+	}
+
+	private surfaceHandlers(): SurfaceHandlers {
+		return {
+			onDoc: (side, text) => this.onDoc(side, text),
+			onFocus: (side) => {
+				this.focused = side;
+				this.shell?.setFocused(side);
+			},
+			onSave: (which) => {
+				if (which === 'both') void this.saveBoth();
+				else void this.save(which);
+			},
+			onChunks: (count) => {
+				this.countEl?.setText(`Changes: ${count}`);
+				if (this.shell) this.refreshMobileBars();
+			},
+			onSelect: () => {
+				if (this.shell) this.refreshMobileBars();
+			},
+		};
+	}
+
+	private buildShell(): void {
+		this.shell = null;
+		this.leftSave = null;
+		this.rightSave = null;
+		this.leftLabel = null;
+		this.rightLabel = null;
+		this.countEl = null;
+		this.bannerEl = null;
 		this.contentEl.empty();
 		this.contentEl.addClass('meld-diff-view');
+		this.contentEl.toggleClass('is-mobile', this.mobile);
+		if (!this.mobile) this.contentEl.removeClass('is-keyboard');
+		if (this.mobile) this.buildMobileShell();
+		else this.buildDesktopShell();
+	}
+
+	private buildDesktopShell(): void {
 		const header = this.contentEl.createDiv({ cls: 'meld-diff-header' });
 		const files = header.createDiv({ cls: 'meld-diff-files' });
 		this.leftSave = this.iconButton(files, 'save', 'Save left file', () => { void this.save('left'); });
@@ -139,19 +191,153 @@ export class DiffView extends ItemView {
 		this.textButton(tools, 'To left', 'Copy all changes right to left', () => { void this.copyAll('to-left'); });
 		this.bannerEl = this.contentEl.createDiv({ cls: 'meld-banners' });
 		const body = this.contentEl.createDiv({ cls: 'meld-diff-body' });
-		this.surface = new DiffSurface(body, {
-			onDoc: (side, text) => this.onDoc(side, text),
-			onFocus: (side) => { this.focused = side; },
-			onSave: (which) => {
-				if (which === 'both') void this.saveBoth();
-				else void this.save(which);
+		this.surface = new DiffSurface(body, this.surfaceHandlers());
+	}
+
+	private buildMobileShell(): void {
+		this.shell = new MobileShell(this.contentEl, {
+			pick: (side) => { void this.pick(side); },
+			focus: (side) => {
+				this.focused = side;
+				this.shell?.setFocused(side);
+				if (this.surface instanceof StackedHost) this.surface.focus(side);
 			},
-			onChunks: (count) => this.countEl?.setText(`Changes: ${count}`),
+			action: (side, action) => this.runMobileAction(side, action),
+			menu: (side, event) => this.openMobileFileMenu(side, event),
+			cog: (event) => this.openMobileCog(event),
+			summary: () => this.openSummary(),
+			prev: () => this.prevHunk(),
+			next: () => this.nextHunk(),
+			closeSummary: () => this.shell?.showSummary(null),
+			focusChunk: (index, side) => this.focusSummaryChunk(index, side),
 		});
-		this.register(this.plugin.onSettings(() => this.applySettings()));
-		this.opened = true;
-		this.updateToggles();
-		await this.loadPair(this.sides.left.path, this.sides.right.path, false);
+		this.leftLabel = this.shell.label('left');
+		this.rightLabel = this.shell.label('right');
+		this.bannerEl = this.shell.bannerEl;
+		this.surface = new StackedHost(this.shell.editors, this.surfaceHandlers());
+	}
+
+	private rebuildShell(): void {
+		this.surface?.destroy();
+		this.surface = null;
+		this.buildShell();
+		this.mount();
+		this.renderChrome();
+		this.refreshTitle();
+	}
+
+	private bindKeyboard(): void {
+		if (this.keyboardBound) return;
+		this.keyboardBound = true;
+		const viewport = window.visualViewport;
+		if (!viewport) return;
+		const update = () => {
+			const open = this.mobile && window.innerHeight - viewport.height > 140;
+			this.contentEl.toggleClass('is-keyboard', open);
+			if (this.surface instanceof StackedHost) this.surface.remeasure();
+		};
+		viewport.addEventListener('resize', update);
+		this.register(() => viewport.removeEventListener('resize', update));
+	}
+
+	private runMobileAction(side: Side, action: HunkAction): void {
+		if (!(this.surface instanceof StackedHost)) return;
+		this.surface.arm(action, side);
+		this.refreshMobileBars();
+	}
+
+	private refreshMobileBars(): void {
+		if (!this.shell || !(this.surface instanceof StackedHost)) return;
+		const left = this.surface.getText('left');
+		const right = this.surface.getText('right');
+		for (const side of ['left', 'right'] as const) {
+			const chunk = this.sides[side].path ? this.surface.chunkAt(side) : null;
+			const armed = this.surface.armedOn(side);
+			let caption = '';
+			if (!this.sides[side].path) caption = '';
+			else if (armed && chunk) caption = armedCaption(armed, left, right, chunk);
+			else if (chunk) caption = idleCaption(left, right, chunk);
+			else caption = 'No change at the cursor';
+			this.shell.setBar(side, barActions(chunk, side === 'left' ? 'a' : 'b'), armed, caption);
+		}
+	}
+
+	private openSummary(): void {
+		if (!(this.surface instanceof StackedHost) || !this.shell) return;
+		this.surface.cancelArm();
+		this.refreshMobileBars();
+		this.shell.showSummary(buildSummary(this.surface.getText('left'), this.surface.getText('right'), this.surface.chunks()));
+	}
+
+	private focusSummaryChunk(index: number, side: Side): void {
+		this.shell?.showSummary(null);
+		if (this.surface instanceof StackedHost) this.surface.focusChunk(index, side);
+		this.refreshMobileBars();
+	}
+
+	private openMobileCog(event: MouseEvent): void {
+		const menu = new Menu();
+		const items: Array<{ title: string; key: 'alignScroll' | 'wrapLines' | 'showIntraLine' }> = [
+			{ title: 'Sync scroll', key: 'alignScroll' },
+			{ title: 'Text wrapping', key: 'wrapLines' },
+			{ title: 'Highlight changes inside a line', key: 'showIntraLine' },
+		];
+		for (const item of items) {
+			menu.addItem((entry) => {
+				entry.setTitle(item.title).setChecked(this.plugin.settings[item.key]).onClick(() => {
+					this.plugin.settings[item.key] = !this.plugin.settings[item.key];
+					void this.plugin.saveSettings(false);
+				});
+			});
+		}
+		menu.addSeparator();
+		menu.addItem((entry) => entry.setTitle('Diff colors').onClick(() => this.plugin.openSettings()));
+		menu.showAtMouseEvent(event);
+	}
+
+	private openMobileFileMenu(side: Side, event: MouseEvent): void {
+		const menu = new Menu();
+		const path = this.sides[side].path;
+		const file = path ? this.app.vault.getAbstractFileByPath(path) : null;
+		const target = file instanceof TFile ? file : null;
+		if (!target) menu.addItem((item) => item.setTitle('No file on this side').setDisabled(true));
+		else {
+			menu.addItem((item) => item.setTitle('Open in normal pane').setIcon('file').onClick(() => { void openInNewTab(this.app, target); }));
+			menu.addItem((item) => item.setTitle('Reveal').setIcon('folder').onClick(() => { void revealInNavigation(this.app, target); }));
+			menu.addItem((item) => item.setTitle('Rename').setIcon('pencil').onClick(() => { void promptRename(this.app, target); }));
+			menu.addItem((item) => item.setTitle('Move').setIcon('folder-input').onClick(() => { void promptMove(this.app, target); }));
+			menu.addItem((item) => item.setTitle('Copy path').setIcon('clipboard').onClick(() => { void copyPlainText(target.path, 'path'); }));
+		}
+		menu.addItem((item) => item.setTitle('Copy all text').setIcon('copy').onClick(() => {
+			void copyPlainText(this.surface?.getText(side) ?? this.sides[side].text, 'file text');
+		}));
+		menu.addItem((item) => item.setTitle('Save this side').setIcon('save').onClick(() => { void this.save(side); }));
+		menu.addItem((item) => item.setTitle('Swap with the other side').setIcon('arrow-left-right').onClick(() => this.swap()));
+		menu.addItem((item) => item.setTitle('Use this side').setIcon('replace').onClick(() => { void this.useSide(side); }));
+		if (target) menu.addItem((item) => item.setTitle('Trash this file').setIcon('trash').setWarning(true).onClick(() => { void trashWithConfirm(this.app, target); }));
+		menu.addSeparator();
+		menu.addItem((item) => item.setTitle('Clear editor').setIcon('x').onClick(() => { void this.clearSide(side); }));
+		menu.showAtMouseEvent(event);
+	}
+
+	private async useSide(side: Side): Promise<void> {
+		const other: Side = side === 'left' ? 'right' : 'left';
+		const source = this.sides[side].path;
+		const dest = this.sides[other].path;
+		if (!source || !dest) {
+			new Notice('Choose a file on both sides first.');
+			return;
+		}
+		const ok = await confirm(this.app, 'Use this side', `Overwrite ${fileName(dest)} with ${fileName(source)}?`);
+		if (!ok) return;
+		this.surface?.copyAll(side === 'left' ? 'to-right' : 'to-left');
+		await this.save(other);
+	}
+
+	private async clearSide(side: Side): Promise<void> {
+		const ok = await confirm(this.app, 'Clear editor', 'Clear this editor? The file stays until you save.');
+		if (!ok || !(this.surface instanceof StackedHost)) return;
+		this.surface.clear(side);
 	}
 
 	async onClose(): Promise<void> {
@@ -167,8 +353,8 @@ export class DiffView extends ItemView {
 	onPaneMenu(menu: Menu, source: string): void {
 		super.onPaneMenu(menu, source);
 		menu.addSeparator();
-		this.addSideSubmenu(menu, 'Left file', 'left');
-		this.addSideSubmenu(menu, 'Right file', 'right');
+		this.addSideSubmenu(menu, `${this.sideName('left')} file`, 'left');
+		this.addSideSubmenu(menu, `${this.sideName('right')} file`, 'right');
 	}
 
 	onCssChange(): void {
@@ -307,9 +493,14 @@ export class DiffView extends ItemView {
 		return null;
 	}
 
+	private sideName(side: Side): string {
+		if (this.mobile) return side === 'left' ? 'Top' : 'Bottom';
+		return side === 'left' ? 'Left' : 'Right';
+	}
+
 	private async confirmReplace(side: Side): Promise<boolean> {
 		if (!this.isDirty(side)) return true;
-		const choice = await askDirty(this.app, side === 'left' ? 'Left file' : 'Right file');
+		const choice = await askDirty(this.app, `${this.sideName(side)} file`);
 		if (choice === 'cancel') return false;
 		if (choice === 'discard') return true;
 		return this.save(side);
@@ -489,7 +680,7 @@ export class DiffView extends ItemView {
 
 	private async pick(side: Side): Promise<void> {
 		const other = side === 'left' ? this.sides.right.path : this.sides.left.path;
-		const picked = await pickVaultFile(this.app, side === 'left' ? 'Choose the left file' : 'Choose the right file', other ? parentPath(other) : undefined);
+		const picked = await pickVaultFile(this.app, `Choose the ${this.sideName(side).toLowerCase()} file`, other ? parentPath(other) : undefined);
 		if (picked === null) return;
 		const left = side === 'left' ? picked : this.sides.left.path;
 		const right = side === 'right' ? picked : this.sides.right.path;
@@ -529,6 +720,12 @@ export class DiffView extends ItemView {
 	}
 
 	private applySettings(): void {
+		const mobile = wantsMobileLayout(this.plugin.settings);
+		if (mobile !== this.mobile) {
+			this.mobile = mobile;
+			this.rebuildShell();
+			return;
+		}
 		this.updateToggles();
 		if (!this.surface) return;
 		const options = this.surfaceOptions();
@@ -537,6 +734,7 @@ export class DiffView extends ItemView {
 			return;
 		}
 		this.surface.reconfigure(options);
+		if (this.shell) this.refreshMobileBars();
 	}
 
 	private renderChrome(): void {
@@ -544,6 +742,7 @@ export class DiffView extends ItemView {
 		this.renderLabel(this.rightLabel, this.sides.right);
 		this.renderBanners();
 		this.updateToggles();
+		if (this.shell) this.refreshMobileBars();
 	}
 
 	private renderLabel(el: HTMLElement | null, state: SideState): void {
@@ -588,7 +787,7 @@ export class DiffView extends ItemView {
 	private banner(side: Side, text: string, extra: ((row: HTMLElement) => void) | null): void {
 		const row = this.bannerEl?.createDiv({ cls: 'meld-banner' });
 		if (!row) return;
-		row.createSpan({ text: `${side === 'left' ? 'Left' : 'Right'}: ${text}` });
+		row.createSpan({ text: `${this.sideName(side)}: ${text}` });
 		extra?.(row);
 	}
 

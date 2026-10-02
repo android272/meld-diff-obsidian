@@ -1,6 +1,7 @@
 import { getChunks } from '@codemirror/merge';
 import { EditorState, Facet, RangeSetBuilder, type Extension } from '@codemirror/state';
 import { Decoration, EditorView, ViewPlugin, WidgetType, type DecorationSet, type ViewUpdate } from '@codemirror/view';
+import { mobileChunks, mobileSide } from './mobile-decorations';
 
 const showAllWhitespace = Facet.define<boolean, boolean>({
 	combine: (values) => values[values.length - 1] ?? false,
@@ -24,10 +25,19 @@ class EndOfLineWidget extends WidgetType {
 
 const endOfLine = Decoration.widget({ widget: new EndOfLineWidget(), side: -1 });
 
-function changedRanges(state: EditorState): Array<{ from: number; to: number }> | null {
+function chunkInfo(state: EditorState): { chunks: readonly { fromA: number; toA: number; fromB: number; toB: number }[]; side: 'a' | 'b' | null } | null {
 	const info = getChunks(state);
+	if (info) return info;
+	const chunks = state.facet(mobileChunks);
+	if (!chunks) return null;
+	return { chunks, side: state.facet(mobileSide) };
+}
+
+function changedRanges(state: EditorState): Array<{ from: number; to: number }> | null {
+	const info = chunkInfo(state);
 	if (!info) return null;
-	return info.chunks.map((chunk) => (info.side === 'b' ? { from: chunk.fromB, to: chunk.toB } : { from: chunk.fromA, to: chunk.toA }));
+	const side = info.side === 'b' ? 'b' : 'a';
+	return info.chunks.map((chunk) => (side === 'b' ? { from: chunk.fromB, to: chunk.toB } : { from: chunk.fromA, to: chunk.toA }));
 }
 
 function inChange(pos: number, ranges: ReadonlyArray<{ from: number; to: number }>): boolean {
@@ -39,7 +49,7 @@ function inChange(pos: number, ranges: ReadonlyArray<{ from: number; to: number 
 
 function whitespaceSignature(state: EditorState): string {
 	const mode = state.facet(showAllWhitespace) ? 'all' : 'changes';
-	const info = getChunks(state);
+	const info = chunkInfo(state);
 	if (!info) return mode;
 	const body = info.chunks.map((chunk) => `${chunk.fromA},${chunk.toA},${chunk.fromB},${chunk.toB}`).join(';');
 	return `${mode}:${info.side}:${body}`;

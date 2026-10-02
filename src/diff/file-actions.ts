@@ -3,7 +3,7 @@ import { askString, confirm, noticeError } from '../ui/confirm';
 import { isBinaryExtension, joinPath } from '../text-util';
 import { pickFolder } from './file-suggest';
 
-async function copyText(text: string, label: string): Promise<void> {
+export async function copyPlainText(text: string, label: string): Promise<void> {
 	try {
 		await navigator.clipboard.writeText(text);
 		new Notice(`Copied ${label}`);
@@ -128,8 +128,8 @@ export function populateFileMenu(menu: Menu, app: App, file: TFile | null): void
 	menu.addItem((item) => item.setTitle('Rename…').setIcon('pencil').onClick(() => { void promptRename(app, file); }));
 	menu.addItem((item) => item.setTitle('Move file…').setIcon('folder-input').onClick(() => { void promptMove(app, file); }));
 	menu.addItem((item) => item.setTitle('Make a copy').setIcon('copy').onClick(() => { void duplicateFile(app, file); }));
-	menu.addItem((item) => item.setTitle('Copy path').setIcon('clipboard').onClick(() => { void copyText(file.path, 'path'); }));
-	menu.addItem((item) => item.setTitle('Copy Obsidian URL').setIcon('link').onClick(() => { void copyText(obsidianUrl(app, file), 'Obsidian URL'); }));
+	menu.addItem((item) => item.setTitle('Copy path').setIcon('clipboard').onClick(() => { void copyPlainText(file.path, 'path'); }));
+	menu.addItem((item) => item.setTitle('Copy Obsidian URL').setIcon('link').onClick(() => { void copyPlainText(obsidianUrl(app, file), 'Obsidian URL'); }));
 	menu.addSeparator();
 	menu.addItem((item) => item.setTitle('Delete').setIcon('trash').setWarning(true).onClick(() => { void trashWithConfirm(app, file); }));
 }

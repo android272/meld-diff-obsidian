@@ -5,5 +5,5 @@
 	"minAppVersion": "1.6.0",
 	"description": "Meld-style split diff and merge, plus configurable sync-conflict discovery.",
 	"author": "Andrew Pullins",
-	"isDesktopOnly": true
+	"isDesktopOnly": false
 }

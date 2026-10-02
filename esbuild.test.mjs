@@ -6,6 +6,7 @@ await esbuild.build({
 		'tests/groups.test.ts',
 		'tests/hunk-text.test.ts',
 		'tests/hunk-colors.test.ts',
+		'tests/mobile-model.test.ts',
 	],
 	bundle: true,
 	platform: 'node',

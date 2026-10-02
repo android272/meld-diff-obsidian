@@ -59,6 +59,7 @@ export function paneExtensions(options: {
 	useTab: boolean;
 	keys: PaneKeymap;
 	compartments: PaneCompartments;
+	extra?: Extension[];
 }): Extension[] {
 	const { compartments: slots, keys } = options;
 	const extensions = [
@@ -116,5 +117,6 @@ export function paneExtensions(options: {
 	if (isMarkdownPath(options.path)) {
 		extensions.push(markdown({ addKeymap: false, completeHTMLTags: false, pasteURLAsLink: false }));
 	}
+	if (options.extra) extensions.push(...options.extra);
 	return extensions;
 }

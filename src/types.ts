@@ -45,6 +45,8 @@ export interface MeldDiffSettings {
 	showWhitespace: boolean;
 	wrapLines: boolean;
 	showIntraLine: boolean;
+	/** Desktop-only preview of the stacked phone diff. Phones always use that layout. */
+	forceMobileLayout: boolean;
 	ribbonConflicts: boolean;
 	ribbonDiff: boolean;
 	/** Theme follows --color-red/green/yellow/orange. Custom uses the four hex fields. */

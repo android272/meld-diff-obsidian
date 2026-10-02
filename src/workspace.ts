@@ -73,6 +73,10 @@ export async function openMeldView(options: {
 	placement: Placement;
 	state?: Record<string, unknown>;
 	preferCenter?: boolean;
+	/** Ignore sidebar copies and open a main-tab diff. */
+	centerOnly?: boolean;
+	/** Conflict View's first open goes in the left drawer, and it never uses the right split. */
+	mobileConflict?: boolean;
 }): Promise<OpenedView | null> {
 	const { app, viewType } = options;
 	let placement = options.placement;
@@ -84,6 +88,17 @@ export async function openMeldView(options: {
 			return null;
 		}
 		placement = 'reveal';
+	}
+	if (options.mobileConflict && viewType === CONFLICT_VIEW_TYPE) {
+		const existing = mostRecent(collectLeaves(app, viewType));
+		if (existing) {
+			await ensureLoaded(existing);
+			app.workspace.revealLeaf(existing);
+			noteActivation(existing);
+			return { leaf: existing, created: false };
+		}
+		const created = await createLeaf(app, viewType, 'left', state);
+		return created ? { leaf: created, created: true } : null;
 	}
 	if (placement === 'tab') {
 		const leaf = await createLeaf(app, viewType, 'tab', state);
@@ -101,7 +116,13 @@ export async function openMeldView(options: {
 		const created = await createLeaf(app, viewType, placement, state);
 		return created ? { leaf: created, created: true } : null;
 	}
-	const leaves = collectLeaves(app, viewType);
+	let leaves = collectLeaves(app, viewType);
+	if (options.centerOnly) {
+		leaves = leaves.filter((leaf) => {
+			const zone = leafZone(app, leaf);
+			return zone === 'root' || zone === 'float';
+		});
+	}
 	let pick = mostRecent(leaves);
 	if (options.preferCenter && leaves.length > 1 && pick) {
 		const center = leaves.filter((leaf) => {

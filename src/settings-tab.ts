@@ -99,6 +99,9 @@ export class MeldDiffSettingTab extends PluginSettingTab {
 			this.plugin.settings.defaultLeftIsOriginal = value;
 		}, false);
 		new Setting(containerEl).setName('Diff display').setHeading();
+		this.toggle(containerEl, 'Force mobile layout', 'Stack the diff the way it appears on a phone, so you can check that layout on the desktop. A phone always uses the stacked layout.', this.plugin.settings.forceMobileLayout, (value) => {
+			this.plugin.settings.forceMobileLayout = value;
+		}, false);
 		this.toggle(containerEl, 'Align scroll', 'Keep both sides scrolled together.', this.plugin.settings.alignScroll, (value) => {
 			this.plugin.settings.alignScroll = value;
 		}, false);

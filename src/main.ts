@@ -37,7 +37,6 @@ export default class MeldDiffPlugin extends Plugin {
 	private styleSettingsColors = new Map<string, string>();
 
 	async onload(): Promise<void> {
-		if (Platform.isMobile) return;
 		this.settings = mergeSettings(await this.loadData());
 		this.index = new ConflictIndex(this.app, () => this.settings);
 		this.register(this.index.subscribe(() => this.refreshStatus()));
@@ -46,8 +45,10 @@ export default class MeldDiffPlugin extends Plugin {
 		this.addSettingTab(new MeldDiffSettingTab(this.app, this));
 		registerCommands(this);
 		registerMenus(this);
-		this.mountRibbon();
-		this.status = new ConflictStatusBar(() => this.addStatusBarItem(), () => { void this.openView('conflict', 'reveal'); });
+		if (!Platform.isMobile) {
+			this.mountRibbon();
+			this.status = new ConflictStatusBar(() => this.addStatusBarItem(), () => { void this.openView('conflict', 'reveal'); });
+		}
 		this.refreshStatus();
 		this.noteStyleSettingsColors();
 		this.pushHunkColors();
@@ -84,9 +85,7 @@ export default class MeldDiffPlugin extends Plugin {
 	onunload(): void {
 		this.index?.dispose();
 		this.status?.unload();
-		if (!Platform.isMobile) {
-			for (const doc of this.colorDocuments()) removeHunkColorStyle(doc);
-		}
+		for (const doc of this.colorDocuments()) removeHunkColorStyle(doc);
 	}
 
 	onSettings(listener: () => void): () => void {
@@ -133,8 +132,16 @@ export default class MeldDiffPlugin extends Plugin {
 	}
 
 	async openView(kind: 'conflict' | 'diff', placement: Placement): Promise<void> {
-		const viewType = kind === 'conflict' ? CONFLICT_VIEW_TYPE : DIFF_VIEW_TYPE;
-		const opened = await openMeldView({ app: this.app, viewType, placement, preferCenter: false });
+		const phone = Platform.isMobile;
+		const opened = kind === 'diff'
+			? await this.openDiffLeaf({ placement, preferCenter: false })
+			: await openMeldView({
+				app: this.app,
+				viewType: CONFLICT_VIEW_TYPE,
+				placement,
+				preferCenter: false,
+				mobileConflict: phone,
+			});
 		if (!opened && placement !== 'toggle') new Notice(`Could not open the ${kind} view.`);
 	}
 
@@ -149,9 +156,7 @@ export default class MeldDiffPlugin extends Plugin {
 	}
 
 	async openPaths(left: string | null, right: string | null, options: OpenPathOptions): Promise<void> {
-		const opened = await openMeldView({
-			app: this.app,
-			viewType: DIFF_VIEW_TYPE,
+		const opened = await this.openDiffLeaf({
 			placement: options.placement,
 			preferCenter: options.preferCenter ?? false,
 			state: { leftPath: left, rightPath: right },
@@ -169,9 +174,7 @@ export default class MeldDiffPlugin extends Plugin {
 	}
 
 	async setSide(side: 'left' | 'right', path: string): Promise<void> {
-		const opened = await openMeldView({
-			app: this.app,
-			viewType: DIFF_VIEW_TYPE,
+		const opened = await this.openDiffLeaf({
 			placement: 'reveal',
 			preferCenter: true,
 			state: side === 'left' ? { leftPath: path, rightPath: null } : { leftPath: null, rightPath: path },
@@ -235,6 +238,20 @@ export default class MeldDiffPlugin extends Plugin {
 		}
 		this.nextCursor = item.conflict.path;
 		await this.openPair(item.group.originalPath, item.conflict.path, false);
+	}
+
+	private async openDiffLeaf(options: { placement: Placement; preferCenter?: boolean; state?: Record<string, unknown> }): Promise<Awaited<ReturnType<typeof openMeldView>>> {
+		const phone = Platform.isMobile;
+		let placement = options.placement;
+		if (phone && (placement === 'left' || placement === 'right')) placement = 'tab';
+		return openMeldView({
+			app: this.app,
+			viewType: DIFF_VIEW_TYPE,
+			placement,
+			preferCenter: phone || (options.preferCenter ?? false),
+			centerOnly: phone,
+			state: options.state,
+		});
 	}
 
 	private async whenDiff(leaf: WorkspaceLeaf, run: (view: DiffView) => Promise<void>): Promise<void> {

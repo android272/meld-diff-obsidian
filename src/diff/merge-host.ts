@@ -36,6 +36,7 @@ export interface SurfaceHandlers {
 	onFocus: (side: 'left' | 'right') => void;
 	onSave: (which: 'left' | 'right' | 'both') => void;
 	onChunks: (count: number) => void;
+	onSelect?: () => void;
 }
 
 interface LiveEditor {
