@@ -95,7 +95,7 @@ export class MeldDiffSettingTab extends PluginSettingTab {
 			this.plugin.settings.ribbonDiff = value;
 		}, false);
 		showRibbonButtons(this.plugin.settings.ribbonEnabled);
-		this.toggle(containerEl, 'Original on A', 'On: a conflict from the list opens with the original on A and the conflict on B. A is the left pane on desktop and the top pane on mobile. Off: the original opens on B, the right pane on desktop and the bottom pane on mobile, and the conflict opens on A. Swap can still flip the pair after it is open.', this.plugin.settings.defaultLeftIsOriginal, (value) => {
+		this.toggle(containerEl, 'Original on A', 'On: a conflict opens with the original on A and the conflict on B. A is the left pane on desktop and the top pane on mobile. Off: the original opens on B, the right pane on desktop and the bottom pane on mobile, and the conflict opens on A. Changing this swaps the two sides of an open diff immediately. Swap can still flip that pair afterward.', this.plugin.settings.defaultLeftIsOriginal, (value) => {
 			this.plugin.settings.defaultLeftIsOriginal = value;
 		}, false);
 		new Setting(containerEl).setName('Diff display').setHeading();

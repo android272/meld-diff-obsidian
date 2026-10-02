@@ -4,8 +4,9 @@ import { copyPlainText, openInNewTab, populateFileMenu, promptMove, promptRename
 import { pickVaultFile } from '../diff/file-suggest';
 import type { HunkAction } from '../diff/hunk-actions';
 import { DiffSurface, type SurfaceHandlers, type SurfaceOptions, type SurfacePane } from '../diff/merge-host';
-import { armedCaption, barActions, buildSummary, idleCaption } from '../diff/mobile-model';
 import { wantsMobileLayout } from '../diff/mobile-mode';
+import { armedCaption, barActions, buildSummary, idleCaption } from '../diff/mobile-model';
+import { shouldFlipSides, type OriginalPlacement } from '../diff/original-side';
 import { StackedHost } from '../diff/stacked-host';
 import type MeldDiffPlugin from '../main';
 import { fileName, formatBytes, isBinaryExtension, parentPath } from '../text-util';
@@ -67,6 +68,8 @@ export class DiffView extends ItemView {
 	private rightSave: HTMLButtonElement | null = null;
 	private readonly warned = new Set<string>();
 	private readonly autoTimers: Record<Side, number> = { left: 0, right: 0 };
+	/** Last Original-on-A value applied to this view. A change trades the two panes. */
+	private originalOnA = true;
 
 	constructor(leaf: WorkspaceLeaf, private readonly plugin: MeldDiffPlugin) {
 		super(leaf);
@@ -125,6 +128,7 @@ export class DiffView extends ItemView {
 
 	async onOpen(): Promise<void> {
 		this.mobile = wantsMobileLayout(this.plugin.settings);
+		this.originalOnA = this.plugin.settings.defaultLeftIsOriginal;
 		this.bindKeyboard();
 		this.register(this.plugin.onSettings(() => this.applySettings()));
 		this.buildShell();
@@ -372,6 +376,10 @@ export class DiffView extends ItemView {
 	}
 
 	swap(): void {
+		for (const side of ['left', 'right'] as const) {
+			if (this.autoTimers[side]) window.clearTimeout(this.autoTimers[side]);
+			this.autoTimers[side] = 0;
+		}
 		const left = { ...this.sides.left };
 		const right = { ...this.sides.right };
 		this.sides.left = right;
@@ -380,6 +388,9 @@ export class DiffView extends ItemView {
 		this.mount();
 		this.renderChrome();
 		this.refreshTitle();
+		this.scheduleAutosave('left');
+		this.scheduleAutosave('right');
+		this.app.workspace.requestSaveLayout();
 	}
 
 	async saveLeft(): Promise<void> {
@@ -721,12 +732,23 @@ export class DiffView extends ItemView {
 	}
 
 	private applySettings(): void {
+		const originalOnA = this.plugin.settings.defaultLeftIsOriginal;
+		const flipped = originalOnA !== this.originalOnA;
+		this.originalOnA = originalOnA;
+
 		const mobile = wantsMobileLayout(this.plugin.settings);
-		if (mobile !== this.mobile) {
+		const mobileChanged = mobile !== this.mobile;
+		if (mobileChanged) {
 			this.mobile = mobile;
 			this.rebuildShell();
+		}
+
+		if (flipped && shouldFlipSides(originalOnA, this.originalPlacement(), this.hasFile())) {
+			this.swap();
 			return;
 		}
+		if (mobileChanged) return;
+
 		this.updateToggles();
 		if (!this.surface) return;
 		const options = this.surfaceOptions();
@@ -736,6 +758,21 @@ export class DiffView extends ItemView {
 		}
 		this.surface.reconfigure(options);
 		if (this.shell) this.refreshMobileBars();
+	}
+
+	private hasFile(): boolean {
+		return this.sides.left.path !== null || this.sides.right.path !== null;
+	}
+
+	/** A is the left pane on desktop and the top pane on mobile. */
+	private originalPlacement(): OriginalPlacement {
+		const left = this.sides.left.path;
+		const right = this.sides.right.path;
+		if (!left || !right) return null;
+		const index = this.plugin.index;
+		if (index.isConflict(right) && index.originalFor(right) === left) return 'a';
+		if (index.isConflict(left) && index.originalFor(left) === right) return 'b';
+		return null;
 	}
 
 	private renderChrome(): void {

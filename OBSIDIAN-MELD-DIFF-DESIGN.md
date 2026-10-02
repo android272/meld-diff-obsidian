@@ -972,7 +972,7 @@ Conflict View lives in the **left** drawer, with Files, Search, and Bookmarks. N
 
 On mobile, the first open uses `workspace.getLeftLeaf(false)` and `setViewState` there. After that it stays in the left split, so it shows up in the left-hand menu the same way the file browser does. Do not call `getRightLeaf` for this view on mobile.
 
-Diff View stays a main editor tab. The stacked editors need the height; a sidebar leaf is too short. Tapping a conflict row opens that main tab with Original on A. When the setting is on, the original is on A and the conflict is on B. When it is off, the original is on B and the conflict is on A. Swap can still flip the pair after it is open.
+Diff View stays a main editor tab. The stacked editors need the height; a sidebar leaf is too short. Tapping a conflict row opens that main tab with Original on A. When the setting is on, the original is on A and the conflict is on B. When it is off, the original is on B and the conflict is on A. Changing the setting flips an open diff immediately: the two panes trade places left and right on desktop, and top and bottom on mobile. Swap can still flip the pair after it is open.
 
 No ribbon on mobile. Entry points are the left drawer item and the commands. Status-bar count is desktop-only.
 
