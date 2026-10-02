@@ -817,11 +817,9 @@ Do **not** implement three-way merge or folder mode in the first delivery.
   "minAppVersion": "1.6.0",
   "description": "Meld-style split diff and merge, plus configurable sync-conflict discovery.",
   "author": "Andrew Pullins",
-  "isDesktopOnly": true
+  "isDesktopOnly": false
 }
 ```
-
-`isDesktopOnly: true` for v1.
 
 ---
 
@@ -855,7 +853,7 @@ Meld Diff adds two views to Obsidian. Both are normal tabs: park them in the mai
 | Plugin name | Meld Diff |
 | Default side | Original left, conflict right |
 | Autosave | Off |
-| Mobile | Desktop side-by-side in v1. Stacked layout in §16 is the mobile spec; do not set `isDesktopOnly` once §16 is built. |
+| Mobile | Desktop side-by-side in v1. Stacked layout in §16 is the mobile spec; |
 | After identical | Prompt to delete conflict (v1.1 if not in first cut) |
 | Include binaries in Conflict View | Yes, but no text diff |
 | Markdown widgets in diff | No; color only |
