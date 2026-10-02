@@ -38,6 +38,7 @@ export interface MeldDiffSettings {
 	scanLimit: number;
 	autosave: boolean;
 	autosaveMs: number;
+	/** True: original opens on A, conflict on B. False: original opens on B, conflict on A. */
 	defaultLeftIsOriginal: boolean;
 	alignScroll: boolean;
 	showCurrentLine: boolean;

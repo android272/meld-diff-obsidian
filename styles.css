@@ -196,10 +196,26 @@ body {
 	min-width: 0;
 }
 
-.meld-side-label {
-	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
+.meld-file-bar {
+	display: flex;
+	flex: 1 1 0;
+	gap: 6px;
+	align-items: center;
+	min-width: 0;
+}
+
+.meld-side-badge {
 	flex: none;
+	font-weight: 700;
+	line-height: 1;
+}
+
+.meld-side-badge.is-a {
+	color: var(--meld-hunk-delete);
+}
+
+.meld-side-badge.is-b {
+	color: var(--meld-hunk-insert);
 }
 
 .meld-file-button {
@@ -625,8 +641,8 @@ body {
 		flex-wrap: wrap;
 	}
 
-	.meld-file-button {
-		flex: 1 1 calc(100% - 120px);
+	.meld-file-bar {
+		flex: 1 1 100%;
 	}
 }
 
@@ -642,16 +658,16 @@ settings:
         level: 2
     -
         id: meld-hunk-delete
-        title: Deleted (left only)
-        description: Left-only lines and their wave. Reset to follow the theme.
+        title: Deleted (A only)
+        description: Lines that exist only on A, and their wave. Reset to follow the theme.
         type: variable-color
         opacity: false
         format: hex
         default: '#fb464c'
     -
         id: meld-hunk-insert
-        title: Added (right only)
-        description: Right-only lines and their wave. Reset to follow the theme.
+        title: Added (B only)
+        description: Lines that exist only on B, and their wave. Reset to follow the theme.
         type: variable-color
         opacity: false
         format: hex
@@ -733,21 +749,6 @@ settings:
 	padding: 4px 6px;
 	background: var(--background-secondary);
 	border-bottom: 1px solid var(--background-modifier-border);
-}
-
-.meld-diff-view.is-mobile .meld-side-dot {
-	width: 8px;
-	height: 8px;
-	border-radius: 50%;
-	flex: none;
-}
-
-.meld-diff-view.is-mobile .meld-side-dot.is-delete {
-	background: var(--meld-hunk-delete);
-}
-
-.meld-diff-view.is-mobile .meld-side-dot.is-insert {
-	background: var(--meld-hunk-insert);
 }
 
 .meld-diff-view.is-mobile .meld-mobile-bar .meld-file-button {

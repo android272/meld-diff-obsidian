@@ -173,22 +173,24 @@ export class DiffView extends ItemView {
 	private buildDesktopShell(): void {
 		const header = this.contentEl.createDiv({ cls: 'meld-diff-header' });
 		const files = header.createDiv({ cls: 'meld-diff-files' });
-		this.leftSave = this.iconButton(files, 'save', 'Save left file', () => { void this.save('left'); });
-		files.createSpan({ cls: 'meld-side-label', text: 'Left' });
-		this.leftLabel = this.fileButton(files, 'left');
-		this.moreButton(files, 'left');
-		this.iconButton(files, 'arrow-left-right', 'Swap left and right', () => this.swap());
-		this.rightSave = this.iconButton(files, 'save', 'Save right file', () => { void this.save('right'); });
-		files.createSpan({ cls: 'meld-side-label', text: 'Right' });
-		this.rightLabel = this.fileButton(files, 'right');
-		this.moreButton(files, 'right');
+		const leftBar = files.createDiv({ cls: 'meld-file-bar' });
+		this.sideBadge(leftBar, 'A');
+		this.leftLabel = this.fileButton(leftBar, 'left');
+		this.moreButton(leftBar, 'left');
+		this.leftSave = this.iconButton(leftBar, 'save', 'Save file A', () => { void this.save('left'); });
+		this.iconButton(files, 'arrow-left-right', 'Swap A and B', () => this.swap());
+		const rightBar = files.createDiv({ cls: 'meld-file-bar' });
+		this.sideBadge(rightBar, 'B');
+		this.rightLabel = this.fileButton(rightBar, 'right');
+		this.moreButton(rightBar, 'right');
+		this.rightSave = this.iconButton(rightBar, 'save', 'Save file B', () => { void this.save('right'); });
 		const tools = header.createDiv({ cls: 'meld-diff-tools' });
 		this.countEl = tools.createSpan({ cls: 'meld-change-count', text: 'Changes: 0' });
 		this.textButton(tools, 'Prev', 'Previous change', () => this.prevHunk());
 		this.textButton(tools, 'Next', 'Next change', () => this.nextHunk());
 		this.textButton(tools, 'Display', 'Display options', (event) => this.openDisplayMenu(event));
-		this.textButton(tools, 'To right', 'Copy all changes left to right', () => { void this.copyAll('to-right'); });
-		this.textButton(tools, 'To left', 'Copy all changes right to left', () => { void this.copyAll('to-left'); });
+		this.textButton(tools, 'to A', 'Copy all changes from B to A', () => { void this.copyAll('to-left'); });
+		this.textButton(tools, 'to B', 'Copy all changes from A to B', () => { void this.copyAll('to-right'); });
 		this.bannerEl = this.contentEl.createDiv({ cls: 'meld-banners' });
 		const body = this.contentEl.createDiv({ cls: 'meld-diff-body' });
 		this.surface = new DiffSurface(body, this.surfaceHandlers());
@@ -353,8 +355,8 @@ export class DiffView extends ItemView {
 	onPaneMenu(menu: Menu, source: string): void {
 		super.onPaneMenu(menu, source);
 		menu.addSeparator();
-		this.addSideSubmenu(menu, `${this.sideName('left')} file`, 'left');
-		this.addSideSubmenu(menu, `${this.sideName('right')} file`, 'right');
+		this.addSideSubmenu(menu, this.sideName('left'), 'left');
+		this.addSideSubmenu(menu, this.sideName('right'), 'right');
 	}
 
 	onCssChange(): void {
@@ -494,13 +496,12 @@ export class DiffView extends ItemView {
 	}
 
 	private sideName(side: Side): string {
-		if (this.mobile) return side === 'left' ? 'Top' : 'Bottom';
-		return side === 'left' ? 'Left' : 'Right';
+		return side === 'left' ? 'A' : 'B';
 	}
 
 	private async confirmReplace(side: Side): Promise<boolean> {
 		if (!this.isDirty(side)) return true;
-		const choice = await askDirty(this.app, `${this.sideName(side)} file`);
+		const choice = await askDirty(this.app, `File ${this.sideName(side)}`);
 		if (choice === 'cancel') return false;
 		if (choice === 'discard') return true;
 		return this.save(side);
@@ -680,7 +681,7 @@ export class DiffView extends ItemView {
 
 	private async pick(side: Side): Promise<void> {
 		const other = side === 'left' ? this.sides.right.path : this.sides.left.path;
-		const picked = await pickVaultFile(this.app, `Choose the ${this.sideName(side).toLowerCase()} file`, other ? parentPath(other) : undefined);
+		const picked = await pickVaultFile(this.app, `Choose file ${this.sideName(side)}`, other ? parentPath(other) : undefined);
 		if (picked === null) return;
 		const left = side === 'left' ? picked : this.sides.left.path;
 		const right = side === 'right' ? picked : this.sides.right.path;
@@ -691,7 +692,7 @@ export class DiffView extends ItemView {
 		const ok = await confirm(
 			this.app,
 			'Copy all changes',
-			direction === 'to-right' ? 'Replace every right-hand change with the left-hand text?' : 'Replace every left-hand change with the right-hand text?',
+			direction === 'to-right' ? 'Replace every change on B with the text from A?' : 'Replace every change on A with the text from B?',
 		);
 		if (!ok) return;
 		this.surface?.copyAll(direction);
@@ -818,8 +819,12 @@ export class DiffView extends ItemView {
 		return button;
 	}
 
+	private sideBadge(parent: HTMLElement, letter: 'A' | 'B'): void {
+		parent.createSpan({ cls: `meld-side-badge is-${letter === 'A' ? 'a' : 'b'}`, text: letter });
+	}
+
 	private moreButton(parent: HTMLElement, side: Side): void {
-		const button = parent.createEl('button', { cls: 'clickable-icon meld-more', attr: { 'aria-label': `${side} file actions` } });
+		const button = parent.createEl('button', { cls: 'clickable-icon meld-more', attr: { 'aria-label': `${this.sideName(side)} file actions` } });
 		setIcon(button, 'more-vertical');
 		button.addEventListener('click', (event) => {
 			const path = this.sides[side].path;

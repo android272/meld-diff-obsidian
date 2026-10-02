@@ -70,13 +70,13 @@ export function registerCommands(plugin: MeldDiffPlugin): void {
 	});
 	plugin.addCommand({
 		id: 'diff-current-as-left',
-		name: 'Meld Diff: Set current file as diff left',
+		name: 'Meld Diff: Set current file as A',
 		hotkeys: [],
 		checkCallback: (checking) => withActiveFile(plugin, checking, (file) => plugin.setSide('left', file.path)),
 	});
 	plugin.addCommand({
 		id: 'diff-current-as-right',
-		name: 'Meld Diff: Set current file as diff right',
+		name: 'Meld Diff: Set current file as B',
 		hotkeys: [],
 		checkCallback: (checking) => withActiveFile(plugin, checking, (file) => plugin.setSide('right', file.path)),
 	});
@@ -108,20 +108,20 @@ export function registerCommands(plugin: MeldDiffPlugin): void {
 	};
 	diffCommand('next-hunk', 'Meld Diff: Next change', (view) => view.nextHunk());
 	diffCommand('prev-hunk', 'Meld Diff: Previous change', (view) => view.prevHunk());
-	diffCommand('swap-sides', 'Meld Diff: Swap left and right', (view) => view.swap());
-	diffCommand('save-left', 'Meld Diff: Save left file', (view) => { void view.saveLeft(); });
-	diffCommand('save-right', 'Meld Diff: Save right file', (view) => { void view.saveRight(); });
+	diffCommand('swap-sides', 'Meld Diff: Swap A and B', (view) => view.swap());
+	diffCommand('save-left', 'Meld Diff: Save file A', (view) => { void view.saveLeft(); });
+	diffCommand('save-right', 'Meld Diff: Save file B', (view) => { void view.saveRight(); });
 	diffCommand('save-both', 'Meld Diff: Save both files', (view) => { void view.saveBoth(); });
-	diffCommand('pick-left-file', 'Meld Diff: Choose left file', (view) => { void view.pickLeft(); });
-	diffCommand('pick-right-file', 'Meld Diff: Choose right file', (view) => { void view.pickRight(); });
-	diffCommand('copy-hunk-to-left', 'Meld Diff: Replace left hunk with right', (view) => view.runHunk('replace-left'));
-	diffCommand('copy-hunk-to-right', 'Meld Diff: Replace right hunk with left', (view) => view.runHunk('replace-right'));
-	diffCommand('insert-hunk-above-left', 'Meld Diff: Insert right hunk above left', (view) => view.runHunk('insert-above-left'));
-	diffCommand('insert-hunk-below-left', 'Meld Diff: Insert right hunk below left', (view) => view.runHunk('insert-below-left'));
-	diffCommand('insert-hunk-above-right', 'Meld Diff: Insert left hunk above right', (view) => view.runHunk('insert-above-right'));
-	diffCommand('insert-hunk-below-right', 'Meld Diff: Insert left hunk below right', (view) => view.runHunk('insert-below-right'));
-	diffCommand('delete-hunk-left', 'Meld Diff: Delete left hunk', (view) => view.runHunk('delete-left'));
-	diffCommand('delete-hunk-right', 'Meld Diff: Delete right hunk', (view) => view.runHunk('delete-right'));
+	diffCommand('pick-left-file', 'Meld Diff: Choose file A', (view) => { void view.pickLeft(); });
+	diffCommand('pick-right-file', 'Meld Diff: Choose file B', (view) => { void view.pickRight(); });
+	diffCommand('copy-hunk-to-left', 'Meld Diff: Replace A with B', (view) => view.runHunk('replace-left'));
+	diffCommand('copy-hunk-to-right', 'Meld Diff: Replace B with A', (view) => view.runHunk('replace-right'));
+	diffCommand('insert-hunk-above-left', 'Meld Diff: Insert B above A', (view) => view.runHunk('insert-above-left'));
+	diffCommand('insert-hunk-below-left', 'Meld Diff: Insert B below A', (view) => view.runHunk('insert-below-left'));
+	diffCommand('insert-hunk-above-right', 'Meld Diff: Insert A above B', (view) => view.runHunk('insert-above-right'));
+	diffCommand('insert-hunk-below-right', 'Meld Diff: Insert A below B', (view) => view.runHunk('insert-below-right'));
+	diffCommand('delete-hunk-left', 'Meld Diff: Delete hunk on A', (view) => view.runHunk('delete-left'));
+	diffCommand('delete-hunk-right', 'Meld Diff: Delete hunk on B', (view) => view.runHunk('delete-right'));
 }
 
 function withActiveFile(plugin: MeldDiffPlugin, checking: boolean, run: (file: TFile) => void): boolean {

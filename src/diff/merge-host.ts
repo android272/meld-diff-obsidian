@@ -379,11 +379,11 @@ export class DiffSurface {
 		}
 		const affectsLeft = action.endsWith('left');
 		if (affectsLeft && this.readOnly.left) {
-			new Notice('The left file is read-only.');
+			new Notice('File A is read-only.');
 			return;
 		}
 		if (!affectsLeft && this.readOnly.right) {
-			new Notice('The right file is read-only.');
+			new Notice('File B is read-only.');
 			return;
 		}
 		applyHunkAction(action, this.merge.a, this.merge.b, chunk);

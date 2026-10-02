@@ -13,17 +13,17 @@ interface ActionSpec {
 }
 
 const TOP_ACTIONS: ActionSpec[] = [
-	{ icon: 'arrow-down', fallback: 'arrow-down', label: 'Replace bottom with this hunk', action: 'replace-right', key: 'replace' },
-	{ icon: 'between-vertical-start', fallback: 'arrow-up-to-line', label: 'Insert this above the bottom hunk', action: 'insert-above-right', key: 'above' },
-	{ icon: 'between-vertical-end', fallback: 'arrow-down-to-line', label: 'Insert this below the bottom hunk', action: 'insert-below-right', key: 'below' },
-	{ icon: 'trash-2', fallback: 'trash', label: 'Delete this hunk on top', action: 'delete-left', key: 'delete' },
+	{ icon: 'arrow-down', fallback: 'arrow-down', label: 'Replace B with this hunk', action: 'replace-right', key: 'replace' },
+	{ icon: 'between-vertical-start', fallback: 'arrow-up-to-line', label: 'Insert this above the hunk on B', action: 'insert-above-right', key: 'above' },
+	{ icon: 'between-vertical-end', fallback: 'arrow-down-to-line', label: 'Insert this below the hunk on B', action: 'insert-below-right', key: 'below' },
+	{ icon: 'trash-2', fallback: 'trash', label: 'Delete this hunk on A', action: 'delete-left', key: 'delete' },
 ];
 
 const BOTTOM_ACTIONS: ActionSpec[] = [
-	{ icon: 'arrow-up', fallback: 'arrow-up', label: 'Replace top with this hunk', action: 'replace-left', key: 'replace' },
-	{ icon: 'between-vertical-start', fallback: 'arrow-up-to-line', label: 'Insert this above the top hunk', action: 'insert-above-left', key: 'above' },
-	{ icon: 'between-vertical-end', fallback: 'arrow-down-to-line', label: 'Insert this below the top hunk', action: 'insert-below-left', key: 'below' },
-	{ icon: 'trash-2', fallback: 'trash', label: 'Delete this hunk on bottom', action: 'delete-right', key: 'delete' },
+	{ icon: 'arrow-up', fallback: 'arrow-up', label: 'Replace A with this hunk', action: 'replace-left', key: 'replace' },
+	{ icon: 'between-vertical-start', fallback: 'arrow-up-to-line', label: 'Insert this above the hunk on A', action: 'insert-above-left', key: 'above' },
+	{ icon: 'between-vertical-end', fallback: 'arrow-down-to-line', label: 'Insert this below the hunk on A', action: 'insert-below-left', key: 'below' },
+	{ icon: 'trash-2', fallback: 'trash', label: 'Delete this hunk on B', action: 'delete-right', key: 'delete' },
 ];
 
 export interface MobileShellHandlers {
@@ -67,8 +67,8 @@ export class MobileShell {
 		this.iconButton(top, 'settings', 'settings', 'Display options', (event) => this.handlers.cog(event));
 		this.bannerEl = this.root.createDiv({ cls: 'meld-banners' });
 		const stack = this.root.createDiv({ cls: 'meld-mobile-stack' });
-		const left = this.pane(stack, 'left', 'A', 'is-delete', TOP_ACTIONS);
-		const right = this.pane(stack, 'right', 'B', 'is-insert', BOTTOM_ACTIONS);
+		const left = this.pane(stack, 'left', 'A', TOP_ACTIONS);
+		const right = this.pane(stack, 'right', 'B', BOTTOM_ACTIONS);
 		this.panes = { left: left.pane, right: right.pane };
 		this.labels = { left: left.label, right: right.label };
 		this.captions = { left: left.caption, right: right.caption };
@@ -150,13 +150,15 @@ export class MobileShell {
 		this.root.addClass('is-summary');
 	}
 
-	private pane(parent: HTMLElement, side: Side, letter: string, dot: string, actions: ActionSpec[]): { pane: HTMLElement; label: HTMLElement; caption: HTMLElement; editor: HTMLElement } {
+	private pane(parent: HTMLElement, side: Side, letter: 'A' | 'B', actions: ActionSpec[]): { pane: HTMLElement; label: HTMLElement; caption: HTMLElement; editor: HTMLElement } {
 		const pane = parent.createDiv({ cls: 'meld-mobile-pane' });
 		const bar = pane.createDiv({ cls: 'meld-mobile-bar' });
-		bar.createSpan({ cls: `meld-side-dot ${dot}` });
-		bar.createSpan({ cls: 'meld-side-label', text: letter });
+		bar.createSpan({ cls: `meld-side-badge is-${letter === 'A' ? 'a' : 'b'}`, text: letter });
 		const label = bar.createEl('button', { cls: 'meld-file-button' });
 		label.addEventListener('click', () => this.handlers.pick(side));
+		const more = bar.createEl('button', { cls: 'clickable-icon meld-more', attr: { 'aria-label': `${letter} file actions` } });
+		setIcon(more, 'more-vertical');
+		more.addEventListener('click', (event) => this.handlers.menu(side, event));
 		const tools = bar.createDiv({ cls: 'meld-mobile-actions' });
 		for (const spec of actions) {
 			const button = tools.createEl('button', { cls: 'clickable-icon meld-mobile-action', attr: { 'aria-label': spec.label } });
@@ -170,9 +172,6 @@ export class MobileShell {
 			});
 			this.buttons[side].push(button);
 		}
-		const more = bar.createEl('button', { cls: 'clickable-icon meld-more', attr: { 'aria-label': `${letter} file actions` } });
-		setIcon(more, 'more-vertical');
-		more.addEventListener('click', (event) => this.handlers.menu(side, event));
 		bar.addEventListener('click', (event) => {
 			const view = bar.closest('.meld-diff-view');
 			const collapsed = view?.classList.contains('is-keyboard') && !pane.classList.contains('is-focused');

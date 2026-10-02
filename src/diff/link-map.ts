@@ -282,11 +282,12 @@ export class LinkMap {
 		const mode = this.mode;
 		const icon = mode === 'delete' ? 'trash-2' : mode === 'insert' ? (where === 'above' ? 'chevron-up' : 'chevron-down') : dir === 'left' ? 'arrow-left' : 'arrow-right';
 		setIcon(button, icon);
+		const side = dir === 'left' ? 'A' : 'B';
 		const label = mode === 'replace'
-			? (dir === 'left' ? 'Replace left with right' : 'Replace right with left')
+			? (dir === 'left' ? 'Replace A with B' : 'Replace B with A')
 			: mode === 'delete'
-				? (dir === 'left' ? 'Delete left hunk' : 'Delete right hunk')
-				: `Insert ${where} on the ${dir}`;
+				? `Delete hunk on ${side}`
+				: `Insert ${where} on ${side}`;
 		button.setAttribute('aria-label', label);
 		button.title = label;
 		button.addEventListener('mousedown', (event) => {

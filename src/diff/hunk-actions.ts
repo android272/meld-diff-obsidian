@@ -13,14 +13,14 @@ export type HunkAction =
 	| 'delete-right';
 
 export const HUNK_ACTION_LABELS: Record<HunkAction, string> = {
-	'replace-left': 'Replace left with right',
-	'replace-right': 'Replace right with left',
-	'insert-above-left': 'Insert right hunk above left',
-	'insert-below-left': 'Insert right hunk below left',
-	'insert-above-right': 'Insert left hunk above right',
-	'insert-below-right': 'Insert left hunk below right',
-	'delete-left': 'Delete left hunk',
-	'delete-right': 'Delete right hunk',
+	'replace-left': 'Replace A with B',
+	'replace-right': 'Replace B with A',
+	'insert-above-left': 'Insert B above A',
+	'insert-below-left': 'Insert B below A',
+	'insert-above-right': 'Insert A above B',
+	'insert-below-right': 'Insert A below B',
+	'delete-left': 'Delete hunk on A',
+	'delete-right': 'Delete hunk on B',
 };
 
 function dispatchEdit(view: EditorView, edit: TextEdit): void {

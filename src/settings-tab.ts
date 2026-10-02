@@ -95,7 +95,7 @@ export class MeldDiffSettingTab extends PluginSettingTab {
 			this.plugin.settings.ribbonDiff = value;
 		}, false);
 		showRibbonButtons(this.plugin.settings.ribbonEnabled);
-		this.toggle(containerEl, 'Original on the left', 'Conflict View opens the original on the left and the conflict on the right.', this.plugin.settings.defaultLeftIsOriginal, (value) => {
+		this.toggle(containerEl, 'Original on A', 'On: a conflict from the list opens with the original on A and the conflict on B. A is the left pane on desktop and the top pane on mobile. Off: the original opens on B, the right pane on desktop and the bottom pane on mobile, and the conflict opens on A. Swap can still flip the pair after it is open.', this.plugin.settings.defaultLeftIsOriginal, (value) => {
 			this.plugin.settings.defaultLeftIsOriginal = value;
 		}, false);
 		new Setting(containerEl).setName('Diff display').setHeading();
@@ -201,8 +201,8 @@ export class MeldDiffSettingTab extends PluginSettingTab {
 					void this.plugin.saveSettings(false, true);
 				});
 			});
-		pickerRows.push(this.colorPicker(container, 'Deleted (left only)', 'Left-only lines and their wave.', 'hunkDelete', 'delete'));
-		pickerRows.push(this.colorPicker(container, 'Added (right only)', 'Right-only lines and their wave.', 'hunkInsert', 'insert'));
+		pickerRows.push(this.colorPicker(container, 'Deleted (A only)', 'Lines that exist only on A, and their wave.', 'hunkDelete', 'delete'));
+		pickerRows.push(this.colorPicker(container, 'Added (B only)', 'Lines that exist only on B, and their wave.', 'hunkInsert', 'insert'));
 		pickerRows.push(this.colorPicker(container, 'Changed (both sides)', 'Both sides, and the wave between them.', 'hunkChange', 'change'));
 		pickerRows.push(this.colorPicker(container, 'Changed characters', 'Characters that differ inside a change. Ignored when highlighting inside a line is off.', 'hunkToken', 'token'));
 		showPickers(settings.colorSource === 'custom');

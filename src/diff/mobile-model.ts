@@ -111,7 +111,7 @@ function quoted(doc: string, from: number, to: number): string {
 
 export function armedCaption(action: MobileWrite, left: string, right: string, chunk: RangeChunk): string {
 	const writeLeft = action.endsWith('left');
-	const place = writeLeft ? 'top' : 'bottom';
+	const place = writeLeft ? 'A' : 'B';
 	const destDoc = writeLeft ? left : right;
 	const srcDoc = writeLeft ? right : left;
 	const destFrom = writeLeft ? chunk.fromA : chunk.fromB;

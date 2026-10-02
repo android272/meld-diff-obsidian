@@ -192,9 +192,9 @@ export default class MeldDiffPlugin extends Plugin {
 	}
 
 	async compareTwoFiles(): Promise<void> {
-		const left = await pickVaultFile(this.app, 'Choose the left file');
+		const left = await pickVaultFile(this.app, 'Choose file A');
 		if (!left) return;
-		const right = await pickVaultFile(this.app, 'Choose the right file', left.includes('/') ? left.slice(0, left.lastIndexOf('/')) : '/');
+		const right = await pickVaultFile(this.app, 'Choose file B', left.includes('/') ? left.slice(0, left.lastIndexOf('/')) : '/');
 		if (!right) return;
 		await this.openPaths(left, right, { placement: 'tab', prompt: false });
 	}

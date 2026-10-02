@@ -12,11 +12,11 @@ test('replace caption quotes both sides, and an empty destination is an insert',
 	const chunk = { fromA: 0, toA: 11, fromB: 0, toB: 5 };
 	assert.equal(
 		armedCaption('replace-right', 'adipiscing\n', 'amet\n', chunk),
-		'Replace bottom: “amet” will become “adipiscing”',
+		'Replace B: “amet” will become “adipiscing”',
 	);
 	assert.equal(
 		armedCaption('replace-right', 'adipiscing\n', 'keep\n', { fromA: 0, toA: 11, fromB: 5, toB: 5 }),
-		'Insert on bottom',
+		'Insert on B',
 	);
 });
 
