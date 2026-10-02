@@ -1,6 +1,6 @@
 import { getIcon, setIcon } from 'obsidian';
 import type { HunkAction } from '../diff/hunk-actions';
-import type { BarActions, SummaryDocument } from '../diff/mobile-model';
+import { actionTip, type BarActions, type SummaryDocument } from '../diff/mobile-model';
 
 type Side = 'left' | 'right';
 
@@ -99,8 +99,12 @@ export class MobileShell {
 			const spec = specs[index];
 			const button = buttons[index];
 			if (!spec || !button) continue;
-			button.disabled = !actions[spec.key];
-			button.toggleClass('is-armed', armed === spec.action);
+			const enabled = actions[spec.key];
+			button.disabled = !enabled;
+			button.toggleClass('is-armed', enabled && armed === spec.action);
+			const label = actionTip(spec.key, actions, spec.label);
+			button.setAttribute('aria-label', label);
+			button.title = label;
 		}
 		this.captions[side].setText(caption);
 		this.captions[side].toggleClass('is-empty', caption.length === 0);

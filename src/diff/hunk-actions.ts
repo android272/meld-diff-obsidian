@@ -1,6 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import { Notice } from 'obsidian';
-import { deleteEdit, hunkText, replaceEdit, type RangeChunk, type TextEdit } from './hunk-text';
+import { deleteEdit, hunkHasBothSides, hunkText, replaceEdit, type RangeChunk, type TextEdit } from './hunk-text';
 
 export type HunkAction =
 	| 'replace-left'
@@ -29,6 +29,7 @@ function dispatchEdit(view: EditorView, edit: TextEdit): void {
 }
 
 export function applyHunkAction(action: HunkAction, left: EditorView, right: EditorView, chunk: RangeChunk): void {
+	if (action.startsWith('insert-') && !hunkHasBothSides(chunk)) return;
 	const leftDoc = left.state.doc.toString();
 	const rightDoc = right.state.doc.toString();
 	const leftBreak = left.state.lineBreak || '\n';

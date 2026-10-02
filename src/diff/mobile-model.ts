@@ -1,4 +1,4 @@
-import type { RangeChunk } from './hunk-text';
+import { INSERT_AROUND_REASON, hunkHasBothSides, type RangeChunk } from './hunk-text';
 
 export interface SummaryChange {
 	fromA: number;
@@ -130,7 +130,20 @@ export function armedCaption(action: MobileWrite, left: string, right: string, c
 export function barActions(chunk: RangeChunk | null, side: 'a' | 'b'): BarActions {
 	if (!chunk) return { replace: false, above: false, below: false, delete: false };
 	const empty = side === 'a' ? chunk.fromA === chunk.toA : chunk.fromB === chunk.toB;
-	return { replace: true, above: true, below: true, delete: !empty };
+	const around = hunkHasBothSides(chunk);
+	return { replace: true, above: around, below: around, delete: !empty };
+}
+
+export function actionTip(key: keyof BarActions, actions: BarActions, label: string): string {
+	if ((key === 'above' || key === 'below') && actions.replace && !actions[key]) return INSERT_AROUND_REASON;
+	return label;
+}
+
+export function cursorCaption(armed: MobileWrite | null, left: string, right: string, chunk: RangeChunk | null): string {
+	if (armed && chunk) return armedCaption(armed, left, right, chunk);
+	if (!chunk) return 'No change at the cursor';
+	if (!hunkHasBothSides(chunk)) return INSERT_AROUND_REASON;
+	return idleCaption(left, right, chunk);
 }
 
 export interface ScrollBlock {

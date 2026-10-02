@@ -5,7 +5,7 @@ import { pickVaultFile } from '../diff/file-suggest';
 import type { HunkAction } from '../diff/hunk-actions';
 import { DiffSurface, type SurfaceHandlers, type SurfaceOptions, type SurfacePane } from '../diff/merge-host';
 import { wantsMobileLayout } from '../diff/mobile-mode';
-import { armedCaption, barActions, buildSummary, idleCaption } from '../diff/mobile-model';
+import { barActions, buildSummary, cursorCaption } from '../diff/mobile-model';
 import { shouldFlipSides, type OriginalPlacement } from '../diff/original-side';
 import { StackedHost } from '../diff/stacked-host';
 import type MeldDiffPlugin from '../main';
@@ -259,11 +259,7 @@ export class DiffView extends ItemView {
 		for (const side of ['left', 'right'] as const) {
 			const chunk = this.sides[side].path ? this.surface.chunkAt(side) : null;
 			const armed = this.surface.armedOn(side);
-			let caption = '';
-			if (!this.sides[side].path) caption = '';
-			else if (armed && chunk) caption = armedCaption(armed, left, right, chunk);
-			else if (chunk) caption = idleCaption(left, right, chunk);
-			else caption = 'No change at the cursor';
+			const caption = this.sides[side].path ? cursorCaption(armed, left, right, chunk) : '';
 			this.shell.setBar(side, barActions(chunk, side === 'left' ? 'a' : 'b'), armed, caption);
 		}
 	}

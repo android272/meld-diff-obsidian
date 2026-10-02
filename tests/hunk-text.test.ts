@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { applyEdit, chunkKind, deleteEdit, hunkText, replaceEdit } from '../src/diff/hunk-text';
+import { applyEdit, chunkKind, deleteEdit, hunkHasBothSides, hunkText, replaceEdit } from '../src/diff/hunk-text';
+
+test('replace into an empty side inserts the other hunk there', () => {
+	const dest = 'alpha\ngamma\n';
+	const src = 'alpha\nBETA\ngamma\n';
+	assert.equal(applyEdit(dest, replaceEdit(src, 6, 11, dest, 6, 6)), 'alpha\nBETA\ngamma\n');
+});
 
 test('replace keeps a trailing newline so the next line stays intact', () => {
 	const dest = 'alpha\nbeta\n';
@@ -36,4 +42,10 @@ test('chunk kind follows which side is empty', () => {
 	assert.equal(chunkKind({ fromA: 0, toA: 0, fromB: 0, toB: 4 }), 'insert');
 	assert.equal(chunkKind({ fromA: 0, toA: 4, fromB: 1, toB: 1 }), 'delete');
 	assert.equal(chunkKind({ fromA: 0, toA: 4, fromB: 0, toB: 4 }), 'change');
+});
+
+test('prepend and append need text on both sides', () => {
+	assert.equal(hunkHasBothSides({ fromA: 0, toA: 4, fromB: 0, toB: 4 }), true);
+	assert.equal(hunkHasBothSides({ fromA: 0, toA: 4, fromB: 1, toB: 1 }), false);
+	assert.equal(hunkHasBothSides({ fromA: 0, toA: 0, fromB: 0, toB: 4 }), false);
 });

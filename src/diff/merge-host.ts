@@ -6,7 +6,7 @@ import { activeLineExtensions, createCompartments, lineNumberExtensions, paneExt
 import { whitespaceExtensions } from './whitespace';
 import { HUNK_ACTION_LABELS, applyHunkAction, chunkAtCursor, type HunkAction } from './hunk-actions';
 import { LinkMap } from './link-map';
-import type { RangeChunk } from './hunk-text';
+import { hunkHasBothSides, type RangeChunk } from './hunk-text';
 
 export interface SurfacePane {
 	text: string;
@@ -402,6 +402,7 @@ export class DiffSurface {
 	private showHunkMenu(chunk: RangeChunk, event: MouseEvent): void {
 		const menu = new Menu();
 		for (const action of Object.keys(HUNK_ACTION_LABELS) as HunkAction[]) {
+			if (action.startsWith('insert-') && !hunkHasBothSides(chunk)) continue;
 			const label = HUNK_ACTION_LABELS[action];
 			menu.addItem((item) => item.setTitle(label).onClick(() => this.run(action, chunk)));
 		}

@@ -5,7 +5,7 @@ import { Notice } from 'obsidian';
 import { isMarkdownPath } from '../text-util';
 import { activeLineExtensions, createCompartments, lineNumberExtensions, paneExtensions, type PaneCompartments } from './editor-extensions';
 import { chunkAtCursor, applyHunkAction, type HunkAction } from './hunk-actions';
-import type { RangeChunk } from './hunk-text';
+import { hunkHasBothSides, type RangeChunk } from './hunk-text';
 import {
 	mobileArm,
 	mobileChunks,
@@ -385,6 +385,7 @@ export class StackedHost {
 	}
 
 	private allows(action: HunkAction, chunk: RangeChunk): boolean {
+		if (action.startsWith('insert-')) return hunkHasBothSides(chunk);
 		if (action === 'delete-left') return chunk.fromA !== chunk.toA;
 		if (action === 'delete-right') return chunk.fromB !== chunk.toB;
 		return true;

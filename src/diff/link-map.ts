@@ -1,6 +1,6 @@
 import { setIcon } from 'obsidian';
 import type { EditorView } from '@codemirror/view';
-import { chunkKind, type RangeChunk } from './hunk-text';
+import { chunkKind, hunkHasBothSides, type RangeChunk } from './hunk-text';
 import type { HunkAction } from './hunk-actions';
 
 export type ModifierMode = 'replace' | 'delete' | 'insert';
@@ -255,6 +255,7 @@ export class LinkMap {
 			const anchor = anchors[index];
 			const top = anchor ? pinnedButtonTop(anchor.top, anchor.bottom) : null;
 			if (top === null) return;
+			if (this.mode === 'insert' && !hunkHasBothSides(chunk)) return;
 			const row = document.createElement('div');
 			row.className = 'meld-hunk-buttons';
 			row.style.top = `${top}px`;
@@ -298,6 +299,7 @@ export class LinkMap {
 			event.preventDefault();
 			event.stopPropagation();
 			const live = modifierMode(event);
+			if (live === 'insert' && !hunkHasBothSides(chunk)) return;
 			if (live === 'insert' && mode !== 'insert') {
 				this.openPopover(button, dir, chunk);
 				return;
@@ -308,6 +310,7 @@ export class LinkMap {
 	}
 
 	private openPopover(anchor: HTMLElement, dir: 'left' | 'right', chunk: RangeChunk): void {
+		if (!hunkHasBothSides(chunk)) return;
 		this.closePopover();
 		const pop = anchor.ownerDocument.createElement('div');
 		pop.className = 'meld-insert-pop';

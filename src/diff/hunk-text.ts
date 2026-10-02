@@ -21,6 +21,13 @@ export function chunkKind(chunk: RangeChunk): ChunkKind {
 	return 'change';
 }
 
+/** Prepend and append need a real hunk on both sides. A point on one side has nothing to insert around. */
+export function hunkHasBothSides(chunk: RangeChunk): boolean {
+	return chunk.fromA !== chunk.toA && chunk.fromB !== chunk.toB;
+}
+
+export const INSERT_AROUND_REASON = 'Nothing on the other side to insert around';
+
 /**
  * Text copied from a chunk. `to` may point one past the last line, matching
  * CodeMirror's Chunk contract, so the final extra unit is dropped and a

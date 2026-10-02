@@ -108,7 +108,7 @@ Pop-out windows (`workspace.openPopoutLeaf` / dragging a tab to a new window) mu
 When a view is parked in a narrow sidebar:
 
 - Conflict View is a list; it should feel natural at sidebar width.
-- Diff View keeps the split layout but stacks the header: the A file bar on one row, the B file bar on the next, the hunk toolbar on a third. Editors stay side by side as long as the pane is wider than ~560px. Below that, still side by side (this is a diff tool) with a horizontal scrollbar rather than switching to a single pane.
+- Diff View keeps the split layout but stacks the header: Left picker on one row, Right picker on the next, hunk toolbar on a third. Editors stay side by side as long as the pane is wider than ~560px. Below that, still side by side (this is a diff tool) with a horizontal scrollbar rather than switching to a single pane.
 
 ---
 
@@ -351,23 +351,23 @@ So workspace restore reopens the same pair.
 
 ### 6.1 Chrome / header
 
-One language on desktop and mobile. The filename is the label. Do not print “Left” and “Right”. Do not print “File 1” / “File 2”.
+One language on desktop and mobile. The filename is the label. Do not print “Left” and “Right” — those words are wrong once the panes stack. Do not print “File 1” / “File 2”. Meld can skip a badge because the panes sit side by side and the arrows sit on the hunks. This plugin cannot: mobile stacks them, and the action buttons have to name a side.
 
-Each file bar starts with a badge, then the filename, then the side menu. The badge is the letter. There is no colored dot.
+Badge is a bold **A** or **B**. No colored dot.
 
-- **A** is bold and red. Text that exists only on A uses the delete color, so the letter is that color.
-- **B** is bold and green. Text that exists only on B uses the add color, so the letter is that color.
+- **A** is bold red, because text that exists only on A is the delete color.
+- **B** is bold green, because text that exists only on B is the add color.
 
-The color marks which side it is, not whether that side currently has a hunk. Swap exchanges the files. It does not swap the colors. A stays red, B stays green. A is the left pane on desktop and the top pane on mobile. B is the right pane on desktop and the bottom pane on mobile.
+The letter color is side identity, not “this pane currently has a hunk.” Same badge on desktop and mobile.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│ [A] [foo.md            ▾] [⋮]  [↕ swap]  [B] [foo.sync-… ▾] [⋮]      │
-│ Changes: 3   [prev] [next]   [to A] [to B]                           │
+│ [↕ swap]  [A] [foo.md              ▾] [⋮]   [B] [foo.sync-… ▾] [⋮] │
+│ Changes: 3   [◀ prev] [next ▶]   [wrap] [align scroll]               │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-Action buttons say “to A” and “to B”.
+A and B in that sketch are bold and colored. Action buttons say “to B” and “to A”, not “To right” / “To left”.
 
 **File pickers**
 
@@ -394,7 +394,7 @@ Each side menu includes (mirror `MarkdownView` file actions as closely as the AP
 
 Do **not** implement a fake Live Preview toggle. Source-only is the product.
 
-**Swap** exchanges A/B paths and editor contents (preserving dirty buffers). A stays the red-dot side, B the green-dot side; swap moves the files, not the colors.
+**Swap** exchanges A/B paths and editor contents (preserving dirty buffers). A stays the bold-red side, B the bold-green side; swap moves the files, not the colors.
 
 ### 6.2 Editor rules (locked)
 
@@ -492,8 +492,8 @@ Fill color by chunk type:
 | Type | CSS variable fallback |
 |---|---|
 | change | `rgba(var(--color-yellow-rgb), 0.25)` or `--text-warning` tint |
-| insert (B only) | `--color-green` tint |
-| delete (A only) | `--color-red` tint |
+| insert (right only) | `--color-green` tint |
+| delete (left only) | `--color-red` tint |
 
 Stroke slightly stronger than fill. Hovering a hunk brightens both editors’ hunk highlight and the wave.
 
@@ -505,33 +505,33 @@ Meld’s rules ([official “Dealing with changes”](https://meldmerge.org/help
 
 - Default click = **Replace**: overwrite the opposite hunk with this hunk.
 - Hold **Shift** = **Delete**: delete *this* hunk from its own file.
-- Hold **Ctrl** (Cmd on macOS) = **Insert**: copy this hunk to the other file **above or below** the corresponding hunk, without deleting what is already there.
+- Hold **Ctrl** (Cmd on macOS) = **Insert above / below**, and only on a **change** hunk (text on both sides). Copy this hunk to the other file above or below the corresponding hunk, without deleting what is already there. If the hunk is insert-only or delete-only, Ctrl does nothing: there is no corresponding text to prepend or append to. Replace and Delete still work on those hunks.
 
 UI:
 
 In the center column, at the start of each hunk, show small icon buttons. Icons swap with modifiers, exactly like Meld:
 
-| Modifier | Control that writes A | Control that writes B |
+| Modifier | Left-pointing control | Right-pointing control |
 |---|---|---|
-| none | Replace A with B | Replace B with A |
-| Shift | Delete hunk on A | Delete hunk on B |
-| Ctrl/Cmd | Insert B above/below on A | Insert A above/below on B |
+| none | Replace left with right | Replace right with left |
+| Shift | Delete left hunk | Delete right hunk |
+| Ctrl/Cmd, change hunk only | Insert right hunk above/below on left | Insert left hunk above/below on right |
+| Ctrl/Cmd, insert or delete hunk | hidden | hidden |
 
-When Ctrl is held, each direction becomes a split control with **above** and **below** chevrons (Meld “Copy Above/Below Left/Right”). If space is tight, a two-item popover on Ctrl-click is acceptable.
+When Ctrl is held on a change hunk, each direction becomes a split control with **above** and **below** chevrons (Meld “Copy Above/Below Left/Right”). If space is tight, a two-item popover on Ctrl-click is acceptable. On an insert-only or delete-only hunk, do not show those chevrons.
 
 Also put the same actions on:
 
 - hunk context menu (right-click the wave or the highlighted lines)
 - command palette (operate on hunk at cursor)
-- optional toolbar “to A” / “to B” with confirm
+- optional toolbar “Copy all remaining left→right / right→left” with confirm
 
 **Apply algorithm**
 
 Operate on document offsets from `Chunk` (`fromA/toA`, `fromB/toB`):
 
 - Replace right with left: `right.dispatch` replace `[fromB, toB)` with `left.slice(fromA, toA)`. Preserve a trailing newline so we do not glue paragraphs.
-- Insert above: insert at `fromB` (or `fromA`).
-- Insert below: insert at `toB` (or `toA`).
+- Insert above / below: only if both `fromA != toA` and `fromB != toB`. Insert at `fromB` / `toB` (or `fromA` / `toA`). No-op on a one-sided hunk.
 - Delete: replace range with `""`, keep a single newline if both neighbors would otherwise merge mid-line.
 
 After a hunk action, focus stays where it was; diff recomputes; both sides mark dirty if text changed.
@@ -583,7 +583,7 @@ interface MeldDiffSettings {
   scanLimit: number;
   autosave: boolean;
   autosaveMs: number;
-  defaultLeftIsOriginal: boolean;  // true: original on A, conflict on B
+  defaultLeftIsOriginal: boolean;  // true: original on A (desktop left, mobile top), conflict on B
   wrapLines: boolean;
   showIntraLine: boolean;          // highlightChanges
   ribbonConflicts: boolean;
@@ -601,6 +601,8 @@ interface MeldDiffSettings {
 
 Defaults: Syncthing pattern on, status bar on, both ribbon buttons on, original on A, wrap on, intra-line on, autosave off, collapse unchanged off, `colorSource: "theme"`.
 
+`defaultLeftIsOriginal` is one setting for both layouts. On means the original opens on A: desktop left, mobile top. Off means the original opens on B: desktop right, mobile bottom. The conflict file takes the other side. Rename the setting label to “Original on A” so it is not desktop-only wording. Swap still flips the open pair after that.
+
 ### 7.1 Hunk color settings (locked)
 
 Do not expose a dozen pickers. Users customize **meaning**, and the wave / gutter / block all share that meaning.
@@ -610,8 +612,8 @@ Settings → Meld Diff → **Diff colors**:
 | Control | Default | What it tints |
 |---|---|---|
 | Color source | Theme colors | Theme = `--color-red/green/yellow/orange`. Custom = the four pickers below. |
-| Deleted (A only) | `--color-red` | A-only block, its wave, its gutter |
-| Added (B only) | `--color-green` | B-only block, its wave, its gutter |
+| Deleted (left only) | `--color-red` | Left-only block, its wave, its gutter |
+| Added (right only) | `--color-green` | Right-only block, its wave, its gutter |
 | Changed (both sides) | `--color-yellow` | Both-side block, its wave, its gutter |
 | Changed characters | `--color-orange` | Intra-line marks inside a change hunk only |
 | Block opacity | 20% | Wash behind whole hunks |
@@ -655,11 +657,11 @@ Command names must start with `Meld Diff:` so they group in the Hotkeys pane.
 
 | Id | Name | Action |
 |---|---|---|
-| `diff-current-with-other` | Meld Diff: Compare current file with… | Fuzzy-pick a second file; open/reuse Diff (current = A) |
+| `diff-current-with-other` | Meld Diff: Compare current file with… | Fuzzy-pick a second file; open/reuse Diff (current = left) |
 | `diff-current-with-conflict` | Meld Diff: Compare current file with its conflict | If several conflicts, pick one |
 | `diff-two-files` | Meld Diff: Compare two files… | Two pickers, then open Diff |
-| `diff-current-as-left` | Meld Diff: Set current file as A | Reuse active Diff View, or open one |
-| `diff-current-as-right` | Meld Diff: Set current file as B | Same for B |
+| `diff-current-as-left` | Meld Diff: Set current file as diff left | Reuse active Diff View, or open one |
+| `diff-current-as-right` | Meld Diff: Set current file as diff right | Same for the right pane |
 
 ### 8.3 Conflict index
 
@@ -676,12 +678,12 @@ These require an active Diff View (`checkCallback`). Suggested optional defaults
 |---|---|---|---|
 | `next-hunk` | Meld Diff: Next change | `Alt+ArrowDown` | Jump to next hunk |
 | `prev-hunk` | Meld Diff: Previous change | `Alt+ArrowUp` | Jump to previous hunk |
-| `swap-sides` | Meld Diff: Swap A and B | | |
-| `save-left` | Meld Diff: Save file A | | |
-| `save-right` | Meld Diff: Save file B | | |
+| `swap-sides` | Meld Diff: Swap left and right | | |
+| `save-left` | Meld Diff: Save left file | | |
+| `save-right` | Meld Diff: Save right file | | |
 | `save-both` | Meld Diff: Save both files | `Mod+Shift+S` when view focused | |
-| `pick-left-file` | Meld Diff: Choose file A | | Opens the picker for A |
-| `pick-right-file` | Meld Diff: Choose file B | | Opens the picker for B |
+| `pick-left-file` | Meld Diff: Choose left file | | Opens the left file picker |
+| `pick-right-file` | Meld Diff: Choose right file | | Opens the right file picker |
 
 `Mod+S` inside the Diff View is handled as an editor command on the focused pane, not only as a plugin command.
 
@@ -691,14 +693,14 @@ Operate on the hunk containing the cursor in the focused editor. Same semantics 
 
 | Id | Name | Action |
 |---|---|---|
-| `copy-hunk-to-left` | Meld Diff: Replace A with B | |
-| `copy-hunk-to-right` | Meld Diff: Replace B with A | |
-| `insert-hunk-above-left` | Meld Diff: Insert B above A | |
-| `insert-hunk-below-left` | Meld Diff: Insert B below A | |
-| `insert-hunk-above-right` | Meld Diff: Insert A above B | |
-| `insert-hunk-below-right` | Meld Diff: Insert A below B | |
-| `delete-hunk-left` | Meld Diff: Delete hunk on A | |
-| `delete-hunk-right` | Meld Diff: Delete hunk on B | |
+| `copy-hunk-to-left` | Meld Diff: Replace left hunk with right | |
+| `copy-hunk-to-right` | Meld Diff: Replace right hunk with left | |
+| `insert-hunk-above-left` | Meld Diff: Insert right hunk above left | |
+| `insert-hunk-below-left` | Meld Diff: Insert right hunk below left | |
+| `insert-hunk-above-right` | Meld Diff: Insert left hunk above right | |
+| `insert-hunk-below-right` | Meld Diff: Insert left hunk below right | |
+| `delete-hunk-left` | Meld Diff: Delete left hunk | |
+| `delete-hunk-right` | Meld Diff: Delete right hunk | |
 
 No default hotkeys for hunk actions. Users who want Meld muscle memory can bind them.
 
@@ -787,7 +789,7 @@ Do not hard-code dark-theme hex values.
 2. Open Diff; left is `foo.md`, right is the conflict.
 3. Change one word on the right: only that word highlights, wave appears, prev/next finds it.
 4. Click “copy to left”: left word updates; both dirty; save writes `foo.md`.
-5. Ctrl + “insert below” appends the hunk without deleting the existing left hunk.
+5. Ctrl on a change hunk shows insert-above and insert-below. Ctrl on a one-sided hunk does not. Insert-below on a change hunk appends without deleting the other side.
 6. Shift + delete removes the hunk on that side.
 7. Header picker can load `bar.md` vs `baz.md` with no conflict relationship.
 8. Side ⋮ Delete sends the file to trash and updates the pane.
@@ -826,9 +828,11 @@ Do **not** implement three-way merge or folder mode in the first delivery.
   "minAppVersion": "1.6.0",
   "description": "Meld-style split diff and merge, plus configurable sync-conflict discovery.",
   "author": "Andrew Pullins",
-  "isDesktopOnly": false
+  "isDesktopOnly": true
 }
 ```
+
+`isDesktopOnly: true` for v1.
 
 ---
 
@@ -860,9 +864,9 @@ Meld Diff adds two views to Obsidian. Both are normal tabs: park them in the mai
 | Topic | Recommendation |
 |---|---|
 | Plugin name | Meld Diff |
-| Default side | Original on A, conflict on B |
+| Default side | Original on A (desktop left, mobile top). Off puts original on B. |
 | Autosave | Off |
-| Mobile | Desktop side-by-side in v1. Stacked layout in §16 is the mobile spec. |
+| Mobile | Desktop side-by-side in v1. Stacked layout in §16 is the mobile spec; do not set `isDesktopOnly` once §16 is built. |
 | After identical | Prompt to delete conflict (v1.1 if not in first cut) |
 | Include binaries in Conflict View | Yes, but no text diff |
 | Markdown widgets in diff | No; color only |
@@ -883,15 +887,17 @@ Stack, not split. Top is side A (desktop left, usually the original). Bottom is 
 
 ```
 [ doc ]                          [ cog ]
-[ A  filename.md              ▾ ] [ ⋮ ]
+[ • A  filename.md            ▾ ] [ ⋮ ]
 [ editor A — source, red marks on text only in A ]
-[ B  filename.sync-conflict   ▾ ] [ ⋮ ]
+[ • B  filename.sync-conflict ▾ ] [ ⋮ ]
 [ editor B — source, green marks on text only in B ]
 ```
 
 Each editor takes about half the remaining height. When the keyboard is open, the focused editor expands and the other collapses to its file bar (tap the bar to swap focus). Do not keep both full-height editors above a keyboard.
 
-File bars use the same badge as desktop: bold red **A**, bold green **B**, then the filename, then the side menu. No colored dot and no “Left” / “Right”. The letter color marks the side. Swap exchanges the files and leaves A red and B green.
+File bars use the same badge as desktop: bold red **A**, bold green **B**, then the filename. No dot. No “Left” / “Right”. The letter color matches hunk color (only-on-A is red, only-on-B is green), not “this pane is dirty.”
+
+Opening a conflict pair uses `defaultLeftIsOriginal`. On: original on A (top), conflict on B (bottom). Off: original on B, conflict on A.
 
 ### 16.2 What goes to the right of the file bar
 
@@ -930,20 +936,20 @@ Each file bar replaces copy / paste / clear-all with four buttons. Tooltips are 
 
 | Side | Icon (Lucide, already in Obsidian) | Tooltip | Action |
 |---|---|---|---|
-| A (top) | `arrow-down` | Replace B with this hunk | Copy this hunk onto the aligned range in B |
-| A | `between-vertical-start` | Insert this above the hunk on B | Insert A’s hunk above B’s aligned range; does not delete B |
-| A | `between-vertical-end` | Insert this below the hunk on B | Insert A’s hunk below B’s aligned range |
-| A | `trash-2` | Delete this hunk on A | Delete the hunk under the cursor in A |
-| B (bottom) | `arrow-up` | Replace A with this hunk | Copy this hunk onto the aligned range in A |
-| B | `between-vertical-start` | Insert this above the hunk on A | Insert B’s hunk above A’s aligned range |
-| B | `between-vertical-end` | Insert this below the hunk on A | Insert B’s hunk below A’s aligned range |
-| B | `trash-2` | Delete this hunk on B | Delete the hunk under the cursor in B |
+| A (top) | `arrow-down` | Replace bottom with this hunk | Copy this hunk onto the aligned range in B |
+| A | `between-vertical-start` | Insert this above the bottom hunk | Insert A’s hunk above B’s aligned range; does not delete B |
+| A | `between-vertical-end` | Insert this below the bottom hunk | Insert A’s hunk below B’s aligned range |
+| A | `trash-2` | Delete this hunk on top | Delete the hunk under the cursor in A |
+| B (bottom) | `arrow-up` | Replace top with this hunk | Copy this hunk onto the aligned range in A |
+| B | `between-vertical-start` | Insert this above the top hunk | Insert B’s hunk above A’s aligned range |
+| B | `between-vertical-end` | Insert this below the top hunk | Insert B’s hunk below A’s aligned range |
+| B | `trash-2` | Delete this hunk on bottom | Delete the hunk under the cursor in B |
 
 `between-vertical-start` / `between-vertical-end` are the prepend/append icons. They draw a bar with an arrow into the gap, which reads closer to “insert above / below” than `arrow-up-to-line` (that one means “move to start of line”). If a build of Obsidian lacks those two names, fall back to `arrow-up-to-line` and `arrow-down-to-line`.
 
-Before the write, the other editor scrolls to the landing spot and draws a caret (insert above/below) or an outline (replace). The caption changes to `Replace B: “amet” will become “adipiscing”`. First tap arms; second tap on the same button applies. Tap in the editor cancels the arm. This is the confirmation, since there is no room for a sheet and a keyboard at once.
+Before the write, the other editor scrolls to the landing spot and draws a caret (insert above/below) or an outline (replace). The caption changes to `Replace bottom: “amet” will become “adipiscing”`. First tap arms; second tap on the same button applies. Tap in the editor cancels the arm. This is the confirmation, since there is no room for a sheet and a keyboard at once.
 
-Insert above/below stay enabled on insert/delete hunks: they land in the empty gap on the other side. Replace on an empty other side is the same as insert, and the caption says `Insert on B` instead of `Replace`.
+Insert above/below are disabled unless the hunk has text on both sides. On a one-sided hunk the caption says why: `Nothing on the other side to insert around`. Replace stays enabled. Replace on an empty other side inserts into that gap, and the caption says `Insert on B` (or A) instead of `Replace`.
 
 Undo is the editor undo on the side that changed.
 
@@ -972,7 +978,7 @@ Conflict View lives in the **left** drawer, with Files, Search, and Bookmarks. N
 
 On mobile, the first open uses `workspace.getLeftLeaf(false)` and `setViewState` there. After that it stays in the left split, so it shows up in the left-hand menu the same way the file browser does. Do not call `getRightLeaf` for this view on mobile.
 
-Diff View stays a main editor tab. The stacked editors need the height; a sidebar leaf is too short. Tapping a conflict row opens that main tab with Original on A. When the setting is on, the original is on A and the conflict is on B. When it is off, the original is on B and the conflict is on A. Changing the setting flips an open diff immediately: the two panes trade places left and right on desktop, and top and bottom on mobile. Swap can still flip the pair after it is open.
+Diff View stays a main editor tab. The stacked editors need the height; a sidebar leaf is too short. Tapping a conflict row opens that main tab and places the original on A or B according to `defaultLeftIsOriginal`.
 
 No ribbon on mobile. Entry points are the left drawer item and the commands. Status-bar count is desktop-only.
 
