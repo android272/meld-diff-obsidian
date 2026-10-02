@@ -58,7 +58,7 @@ This plugin does both jobs: a **Conflict View** that indexes matches, and a **Di
 - Binary, image, PDF, canvas, base, or Excalidraw visual diffs
 - Driving the Syncthing HTTP API
 - Auto-merge heuristics
-- Mobile-optimized layout
+- Mobile-optimized layout in v1. Desktop ships first. Mobile is a stacked editor, specified in §16, not a squeezed side-by-side.
 
 ---
 
@@ -435,6 +435,29 @@ Classify each `Chunk` as:
 - `delete` — present only on left
 - `change` — present on both, text differs
 
+### 6.4.1 When to use character highlights (locked)
+
+Intra-line / “changed character” marks are only meaningful when **both sides have text in the same hunk**. If one side is empty, every character on the other side is new. Painting each of those characters as a “change” adds noise and hides the real story: the whole block was inserted or deleted.
+
+| Hunk type | Block background | Character / word marks (`cm-changedText`) |
+|---|---|---|
+| **Insert** (right only) | Green tint on the right lines; empty gap on the left | **Off.** The block color is enough. |
+| **Delete** (left only) | Red tint on the left lines; empty gap on the right | **Off.** |
+| **Change** (both sides have content) | Yellow/orange tint on both aligned ranges | **On.** Mark only the tokens that differ (words, punctuation, spaces). Unchanged characters inside the hunk stay un-marked. |
+| Identical lines | None | None |
+
+Examples from a typical note:
+
+- You add a new heading `# Trial Log` on the left only → whole line gets the delete/insert block color. Do not yellow every letter of `# Trial Log`.
+- Left has `- [[Methylene Blue]] (ran out of methylene blue today)` and right has `- [[Methylene Blue]]` → block is a **change**; only `(ran out of methylene blue today)` gets the intra-line mark.
+- Left heading ends at `-` and right has `- Thu` → **change**; mark `Thu` (and the extra space if it differs), not the whole `## [[2026-09-03]] -` prefix.
+
+Implementation notes:
+
+- `@codemirror/merge` `highlightChanges: true` is for change hunks. If it also paints full insert/delete bodies as `cm-changedText`, override that in CSS or skip inline decorations when `fromA === toA` or `fromB === toB`.
+- Prefer word-aligned intra-line diffs (`presentableDiff` / word boundaries) so a whole wiki-link or sentence fragment lights up together instead of every other character.
+- Setting `showIntraLine` already exists; when it is off, *all* character marks disappear, but insert/delete/change **block** colors stay.
+
 ### 6.5 Link map (“the nice wave”)
 
 `@codemirror/merge` draws a simple connector column, but it is not Meld’s bezier river. **Implement a custom overlay** on top of (or instead of) the default revert column.
@@ -556,10 +579,45 @@ interface MeldDiffSettings {
   showIntraLine: boolean;          // highlightChanges
   ribbonConflicts: boolean;
   ribbonDiff: boolean;
+  // Colors: empty string = follow theme semantic variables.
+  colorSource: "theme" | "custom";
+  hunkDelete: string;      // CSS color, used when colorSource === "custom"
+  hunkInsert: string;
+  hunkChange: string;
+  hunkToken: string;
+  hunkOpacity: number;     // 0.08–0.45, default 0.20
+  tokenOpacity: number;    // 0.20–0.60, default 0.35
 }
 ```
 
-Defaults: Syncthing pattern on, status bar on, both ribbon buttons on, original on the left, wrap on, intra-line on, autosave off, collapse unchanged off.
+Defaults: Syncthing pattern on, status bar on, both ribbon buttons on, original on the left, wrap on, intra-line on, autosave off, collapse unchanged off, `colorSource: "theme"`.
+
+### 7.1 Hunk color settings (locked)
+
+Do not expose a dozen pickers. Users customize **meaning**, and the wave / gutter / block all share that meaning.
+
+Settings → Meld Diff → **Diff colors**:
+
+| Control | Default | What it tints |
+|---|---|---|
+| Color source | Theme colors | Theme = `--color-red/green/yellow/orange`. Custom = the four pickers below. |
+| Deleted (left only) | `--color-red` | Left-only block, its wave, its gutter |
+| Added (right only) | `--color-green` | Right-only block, its wave, its gutter |
+| Changed (both sides) | `--color-yellow` | Both-side block, its wave, its gutter |
+| Changed characters | `--color-orange` | Intra-line marks inside a change hunk only |
+| Block opacity | 20% | Wash behind whole hunks |
+| Character opacity | 35% | Wash on tokens; ignored if `showIntraLine` is off |
+| Reset colors | — | Sets source back to Theme and opacities to defaults |
+
+Rules:
+
+- One color per meaning. No separate “left wave / right wave / border / fill” knobs.
+- Active hunk outline stays `--interactive-accent`. Not user-editable in v1.
+- Custom hex values apply to both light and dark. If that looks wrong, switch back to Theme — themes already ship a pair.
+- Live preview: changing a picker updates open Diff Views immediately via a CSS variable on `document.body` (`--meld-hunk-delete`, etc.).
+- Style Settings: ship the same four colors + two opacities in `styles.css` `/* @settings */`. Plugin settings and Style Settings write the same CSS variables; last write wins. Do not maintain two color systems.
+
+Do not add: per-theme (light vs dark) pickers, hue-rotate-from-accent, or a “one-side / both-sides” two-color mode. That last one is what made left-only and right-only indistinguishable.
 
 ---
 
@@ -682,14 +740,29 @@ src/
 
 ### 10.2 Theme
 
-Define plugin CSS that colors:
+Hunk colors are **semantic**, not derived from `--accent`.
+
+| Meaning | Variable | Why |
+|---|---|---|
+| Change (both sides) | `--color-yellow` / `--text-warning` | “modified,” same as Git / Meld |
+| Insert (one side added) | `--color-green` / `--text-success` | “added” |
+| Delete (one side removed) | `--color-red` / `--text-error` | “removed” |
+| Intra-line token in a change hunk | `--color-orange` | nested inside yellow, still readable |
+| Focus / selected hunk outline | `--interactive-accent` | the *only* place accent is allowed |
 
 ```css
 .meld-hunk-change { background: color-mix(in srgb, var(--color-yellow) 22%, transparent); }
 .meld-hunk-insert { background: color-mix(in srgb, var(--color-green) 18%, transparent); }
 .meld-hunk-delete { background: color-mix(in srgb, var(--color-red) 18%, transparent); }
 .cm-mergeView .cm-changedText { background: color-mix(in srgb, var(--color-orange) 35%, transparent); }
+.meld-hunk-active { outline: 1px solid var(--interactive-accent); }
 ```
+
+**Do not** compute insert/delete by rotating or adding 140 to the accent (hue, RGB, or otherwise). Accent is a brand color. Themes set it to purple, orange, teal, near-gray, or neon. Hue+140 on an orange accent becomes cyan; on a green accent, “change” and “insert” collapse into the same family. Light themes wash out; dark themes blow out contrast. Color-blind users also lose the add/remove convention they already know from Git.
+
+Almost every maintained theme already defines `--color-red/green/yellow/orange`. If a rare theme omits them, fall back to those same names on `:root` in the plugin CSS — still not to accent.
+
+Style Settings may expose the four hunk colors as overrides. Default values must still be the semantic variables above.
 
 Do not hard-code dark-theme hex values.
 
@@ -782,7 +855,7 @@ Meld Diff adds two views to Obsidian. Both are normal tabs: park them in the mai
 | Plugin name | Meld Diff |
 | Default side | Original left, conflict right |
 | Autosave | Off |
-| Mobile | Desktop only |
+| Mobile | Desktop side-by-side in v1. Stacked layout in §16 is the mobile spec; do not set `isDesktopOnly` once §16 is built. |
 | After identical | Prompt to delete conflict (v1.1 if not in first cut) |
 | Include binaries in Conflict View | Yes, but no text diff |
 | Markdown widgets in diff | No; color only |
@@ -790,3 +863,116 @@ Meld Diff adds two views to Obsidian. Both are normal tabs: park them in the mai
 | Ribbon | Both buttons on |
 
 If the user specifies otherwise before coding starts, update this table and the corresponding section.
+
+---
+
+## 16. Mobile Diff View
+
+`Platform.isMobile` (or pane width under ~560px, if the setting “stack on narrow” is on) uses this layout instead of the desktop river. Same view type, same state (`leftPath` / `rightPath`), same commands. Do not ship a second plugin.
+
+### 16.1 Layout
+
+Stack, not split. Top is side A (desktop left, usually the original). Bottom is side B (desktop right, usually the conflict).
+
+```
+[ doc ]                          [ cog ]
+[ • A  filename.md            ▾ ] [ ⋮ ]
+[ editor A — source, red marks on text only in A ]
+[ • B  filename.sync-conflict ▾ ] [ ⋮ ]
+[ editor B — source, green marks on text only in B ]
+```
+
+Each editor takes about half the remaining height. When the keyboard is open, the focused editor expands and the other collapses to its file bar (tap the bar to swap focus). Do not keep both full-height editors above a keyboard.
+
+File bars are the same pickers as desktop: tap the name to fuzzy-pick a vault file. A red dot on A, a green dot on B, so the stack reads as delete/add without a legend.
+
+### 16.2 What goes to the right of the file bar
+
+Not copy / paste / clear-all. Those fight Obsidian’s own selection menu and make it too easy to wipe a note.
+
+One ⋮ per bar. Menu:
+
+- Open in normal pane
+- Reveal
+- Rename / move
+- Copy path
+- Copy all text (the only “copy” control)
+- Save this side
+- Swap with the other side
+- Use this side (overwrite the other file, confirm)
+- Trash this file
+
+Clear-all is not in the bar. If it exists at all, it lives at the bottom of that ⋮ menu, labeled “Clear editor,” with a confirm.
+
+### 16.3 Highlights
+
+No waves, no center gutter, no Shift/Ctrl modifiers.
+
+- Text only in A: red token mark in the top editor. No character mark on an empty B gap.
+- Text only in B: green token mark in the bottom editor.
+- Text in both but different: yellow line wash on both, orange on the tokens that differ (same rule as desktop §6.4.1).
+- Block opacity and the four colors come from §7.1.
+
+### 16.4 Hunk actions without a river
+
+Manual edit is the baseline. Both editors are real source editors. Tap and drag move the cursor and select text. The Android selection menu stays the system one. Do not treat a tap on a highlight as a hunk click.
+
+The cursor picks the hunk. If the caret or selection sits inside a change, the file-bar actions for that editor enable. If it sits in unchanged text, or the pane has no file, those four buttons disable. A one-line caption under the buttons names the hunk, truncated: `Hunk: adipiscing → (nothing on B)`.
+
+Each file bar replaces copy / paste / clear-all with four buttons. Tooltips are required; icons alone are not enough.
+
+| Side | Icon (Lucide, already in Obsidian) | Tooltip | Action |
+|---|---|---|---|
+| A (top) | `arrow-down` | Replace bottom with this hunk | Copy this hunk onto the aligned range in B |
+| A | `between-vertical-start` | Insert this above the bottom hunk | Insert A’s hunk above B’s aligned range; does not delete B |
+| A | `between-vertical-end` | Insert this below the bottom hunk | Insert A’s hunk below B’s aligned range |
+| A | `trash-2` | Delete this hunk on top | Delete the hunk under the cursor in A |
+| B (bottom) | `arrow-up` | Replace top with this hunk | Copy this hunk onto the aligned range in A |
+| B | `between-vertical-start` | Insert this above the top hunk | Insert B’s hunk above A’s aligned range |
+| B | `between-vertical-end` | Insert this below the top hunk | Insert B’s hunk below A’s aligned range |
+| B | `trash-2` | Delete this hunk on bottom | Delete the hunk under the cursor in B |
+
+`between-vertical-start` / `between-vertical-end` are the prepend/append icons. They draw a bar with an arrow into the gap, which reads closer to “insert above / below” than `arrow-up-to-line` (that one means “move to start of line”). If a build of Obsidian lacks those two names, fall back to `arrow-up-to-line` and `arrow-down-to-line`.
+
+Before the write, the other editor scrolls to the landing spot and draws a caret (insert above/below) or an outline (replace). The caption changes to `Replace bottom: “amet” will become “adipiscing”`. First tap arms; second tap on the same button applies. Tap in the editor cancels the arm. This is the confirmation, since there is no room for a sheet and a keyboard at once.
+
+Insert above/below stay enabled on insert/delete hunks: they land in the empty gap on the other side. Replace on an empty other side is the same as insert, and the caption says `Insert on bottom` instead of `Replace`.
+
+Undo is the editor undo on the side that changed.
+
+A sticky bottom bar, hidden while the keyboard is up, has prev / next hunk and Summary. Prev/next moves the cursor into that hunk and scrolls both editors. That replaces the desktop arrow column.
+
+Whole-file “use this side” stays in the ⋮ menu and still confirms. The ⋮ also keeps Open, Reveal, Rename, Copy path, Copy all text, Save, Swap, Trash file.
+
+### 16.5 Sync scroll
+
+On by default. Scrolling A moves B to the aligned chunk, and the reverse, unless the user is dragging the other editor. Cog menu: “Sync scroll” toggle, plus wrap, intra-line, and a link to Diff colors. Same toggle can exist on desktop; mobile just needs it in the cog because there is no toolbar room.
+
+### 16.6 Difference summary
+
+The top-left document button opens a third mode in the same tab, not a new plugin view. Title: Difference summary.
+
+- Chips: `Removed: N` (red) and `Added: N` (green). N is characters or words, same unit as the token diff. Show both counts.
+- One read-only source column. Deletions inline in red, insertions inline in green, unchanged text plain. This is the mixed document in the reference screenshots.
+- Not editable. Tap a red or green span to jump back to the stacked editors with that hunk focused.
+- Back arrow returns to the stack without dropping the pair.
+
+Do not render the summary twice. One flow is enough.
+
+### 16.7 Conflict View on mobile
+
+Conflict View lives in the **left** drawer, with Files, Search, and Bookmarks. Not in the right drop-up (Backlinks, Outgoing links, Outline, Calendar).
+
+On mobile, the first open uses `workspace.getLeftLeaf(false)` and `setViewState` there. After that it stays in the left split, so it shows up in the left-hand menu the same way the file browser does. Do not call `getRightLeaf` for this view on mobile.
+
+Diff View stays a main editor tab. The stacked editors need the height; a sidebar leaf is too short. Tapping a conflict row opens that main tab with A = original and B = conflict.
+
+No ribbon on mobile. Entry points are the left drawer item and the commands. Status-bar count is desktop-only.
+
+### 16.8 Out of scope on mobile
+
+- Bezier link map
+- Modifier-key hunk icons
+- Side-by-side editors below 560px
+- Pop-out windows
+
