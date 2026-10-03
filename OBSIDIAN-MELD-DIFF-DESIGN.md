@@ -299,7 +299,7 @@ interface ConflictFile {
 - Each conflict row shows parsed date/time (localized), device id, size.
 - Click original row → expand/collapse.
 - Click conflict row or **Diff** → reveal-or-open a Diff View tab (wherever the user last put one) and load left = original, right = conflict. A dedicated command can force a new Diff tab for that pair.
-- If original is missing, Diff View still opens; left pane shows an empty buffer and a banner “Original file not found. Pick a file.”
+- If original is missing, Diff View still opens with the conflict on B (or A if Original on A is off) and the other side empty. Banner: “Original not in this folder.” Button: **Find original**. That searches the vault for the same filename. One hit: offer it, do not load until the user confirms. Several hits: open the picker filtered to that name. None: the picker opens unfiltered. The file bar is the same manual path. Do not silently load a same-named note from another folder.
 
 ### 5.2 Row actions (context menu + buttons)
 
@@ -368,6 +368,8 @@ The letter color is side identity, not “this pane currently has a hunk.” Sam
 ```
 
 A and B in that sketch are bold and colored. Action buttons say “to B” and “to A”, not “To right” / “To left”.
+
+**File bar label.** One line, not a second line for the folder. Show the immediate parent plus the filename: `boobies/foo.md`. Vault-root files stay `foo.md`. Truncate the end (the `.sync-conflict-…` tail), never the parent or the stem. Tooltip is the full path.
 
 **File pickers**
 
@@ -564,11 +566,25 @@ If either file looks binary (NUL in first 8KB, or extension in a denylist: `png 
 
 ### 6.10 New diff is a blank unsaved comparison
 
-A new Diff View is an unsaved comparison, not a note. No vault file is created. Tab title is `Diff`. Both pickers are empty. Both editors are empty, editable, and show a muted “Select a file or type”.
+A new Diff View is an unsaved comparison, not a note. No vault file is created until the user picks one or uses Save as. Tab title is `Diff`. Both pickers say **No file**. Both editors are empty, editable, and show a muted “Select a file, paste, or type”.
 
-This is the default diff editor case: the user may have no files yet. They can type on A, type on B, and see the live diff. They can then pick a vault file for either side. Picking a file loads it and replaces that side’s buffer. If that side is dirty, prompt Save / Discard / Cancel. There is nowhere to save a side until it has a file; the ⋮ Save item is disabled, and the caption says “Pick a file to save this side.”
+Each side is one of three states:
 
-Commands and the ribbon that say “new diff” always create this blank tab, even if another Diff tab is already open. “Open diff” reveals the most recent Diff tab. Opening a conflict pair fills A and B from the setting; that is not a blank comparison.
+- **Linked, clean.** Has a vault note and the buffer matches disk.
+- **Linked, dirty.** Has a note, buffer differs. Only happens when autosave is off, or a write failed. Dot on the A/B badge and on the tab icon.
+- **Unbound.** No vault note. Pasted or typed text. Badge stays red or green, file bar reads **No file**, and the header caption says `A not saved to a note` (and/or B). This text will not be written by Save or autosave.
+
+Save and Save as are different menu items:
+
+- **Save** writes the linked note. Disabled if unbound or clean. Tooltip “No file yet” or “No changes.”
+- **Save as…** asks for a folder and a name, writes the buffer, then binds that side to the new note. This is how pasted text becomes a note.
+- **Pick file** loads an existing note and replaces the buffer, with Save / Discard / Cancel if dirty or unbound-with-text.
+
+The tab shows unsaved state the same way a note does: a dot if either side is linked-dirty or unbound and not empty. Header caption lists which side. Empty unbound sides are not unsaved.
+
+Closing the Diff tab prompts if any side is linked-dirty or unbound and not empty. Per side: Save or Save as / Discard / Cancel.
+
+Quitting Obsidian: register `workspace.on('quit')` and add a task. If autosave is on, write every linked dirty side. If any side is unbound and not empty, or autosave is off and a side is dirty, open a confirm before the task resolves: Save as / Save / Discard. If the quit hook cannot show a modal, still flush linked sides and do not drop unbound text without the tab-close prompt having already run.
 
 ---
 
@@ -603,7 +619,7 @@ interface MeldDiffSettings {
 }
 ```
 
-Defaults: Syncthing pattern on, status bar on, both ribbon buttons on, original on A, wrap on, intra-line on, autosave off, collapse unchanged off, `colorSource: "theme"`.
+Defaults: Syncthing pattern on, status bar on, both ribbon buttons on, original on A, wrap on, intra-line on, autosave on (750ms), collapse unchanged off, `colorSource: "theme"`.
 
 `defaultLeftIsOriginal` is one setting for both layouts. On means the original opens on A: desktop left, mobile top. Off means the original opens on B: desktop right, mobile bottom. The conflict file takes the other side. Rename the setting label to “Original on A” so it is not desktop-only wording. Swap still flips the open pair after that.
 
@@ -934,7 +950,7 @@ No waves, no center gutter, no Shift/Ctrl modifiers.
 
 Manual edit is the baseline. Both editors are real source editors. Tap and drag move the cursor and select text. The Android selection menu stays the system one. Do not treat a tap on a highlight as a hunk click.
 
-The cursor picks the hunk. If the caret or selection sits inside a change, the file-bar actions for that editor enable. If it sits in unchanged text, or the pane has no file, those four buttons disable. A one-line caption under the buttons names the hunk, truncated: `Hunk: adipiscing → (nothing on B)`.
+The cursor picks the hunk. If the caret or selection sits inside a change, the file-bar actions for that editor enable. A side with no vault note still enables them: typed or pasted text is a diff. If the caret sits in unchanged text, or that pane has no editor, those four buttons disable and no caption is shown, so the bar stays the same height as an empty side. Prev and next move the cursor into the hunk and enable that bar.
 
 Each file bar replaces copy / paste / clear-all with four buttons. Tooltips are required; icons alone are not enough.
 

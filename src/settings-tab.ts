@@ -139,7 +139,7 @@ export class MeldDiffSettingTab extends PluginSettingTab {
 		new Setting(containerEl).setName('Saving').setHeading();
 		let delayEl: HTMLElement | null = null;
 		const showDelay = (enabled: boolean) => delayEl?.toggleClass('meld-setting-hidden', !enabled);
-		this.toggle(containerEl, 'Autosave after edits', 'Off by default. Saves an existing file after you stop typing.', this.plugin.settings.autosave, (value) => {
+		this.toggle(containerEl, 'Autosave after edits', 'On by default. 750 ms after you stop typing, saves a side that already has a note. Text with no note is kept until you save it as a note.', this.plugin.settings.autosave, (value) => {
 			this.plugin.settings.autosave = value;
 			showDelay(value);
 		}, false);

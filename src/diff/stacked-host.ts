@@ -445,11 +445,16 @@ export class StackedHost {
 		const rightPos = Math.min(this.right.view.state.doc.length, chunk.fromB);
 		this.suppress = true;
 		this.syncLock = true;
-		this.left.view.dispatch({ selection: { anchor: leftPos }, scrollIntoView: true });
-		this.right.view.dispatch({ selection: { anchor: rightPos }, scrollIntoView: true });
-		this.syncLock = false;
-		this.suppress = false;
+		try {
+			this.left.view.dispatch({ selection: { anchor: leftPos }, scrollIntoView: true });
+			this.right.view.dispatch({ selection: { anchor: rightPos }, scrollIntoView: true });
+		} finally {
+			this.syncLock = false;
+			this.suppress = false;
+		}
 		(prefer === 'right' ? this.right : this.left).view.focus();
+		// The selection change was suppressed, so the bars would stay disabled.
+		this.handlers.onSelect?.();
 	}
 
 	private run(action: HunkAction, chunk: RangeChunk): void {

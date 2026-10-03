@@ -3,8 +3,14 @@ import { fileName } from '../text-util';
 /** Muted text in an empty editable editor that has no file yet. */
 export const EMPTY_EDITOR_HINT = 'Select a file or type';
 
-/** Shown when Save cannot run because that side has no file. */
-export const SAVE_NEEDS_FILE = 'Pick a file to save this side.';
+/** File button label when the side has no note. */
+export const NO_FILE_LABEL = 'No file';
+
+/** Save tooltip and menu caption when the side has no note. */
+export const NO_FILE_YET = 'No file yet';
+
+/** Save tooltip and menu caption when the linked note matches the buffer. */
+export const NO_CHANGES = 'No changes.';
 
 export interface SideBuffer {
 	path: string | null;
@@ -29,10 +35,48 @@ export function sideHasFile(state: { path: string | null }): boolean {
 	return state.path !== null;
 }
 
-/** Typed text with no file is dirty. Binary and oversized panes are not. */
+/**
+ * Unsaved work. A linked side differs from disk, or an unbound side has text.
+ * An empty unbound side matches its empty saved buffer, so it is not unsaved.
+ * Binary and oversized panes are not editable, so they are never unsaved.
+ */
 export function sideIsDirty(state: Pick<SideBuffer, 'text' | 'saved' | 'binary' | 'tooBig'>): boolean {
 	if (state.binary || state.tooBig) return false;
 	return state.text !== state.saved;
+}
+
+/** Dot on the A or B badge. Only a linked note with unsaved edits. */
+export function sideBadgeDirty(state: Pick<SideBuffer, 'path' | 'text' | 'saved' | 'binary' | 'tooBig'>): boolean {
+	return state.path !== null && sideIsDirty(state);
+}
+
+/**
+ * Save writes the linked note. It stays disabled with no note, and when the
+ * buffer already matches disk. A missing or deleted note can still be written.
+ */
+export function saveEnabled(state: SideBuffer & { missing?: boolean }): boolean {
+	if (!state.path || state.binary || state.tooBig) return false;
+	if (state.deleted || state.missing) return true;
+	return state.text !== state.saved;
+}
+
+export function saveDisabledReason(state: SideBuffer & { missing?: boolean }): string {
+	if (!state.path) return NO_FILE_YET;
+	if (state.binary || state.tooBig) return 'This side is not a text file.';
+	if (!saveEnabled(state)) return NO_CHANGES;
+	return '';
+}
+
+/**
+ * Save as stores a note name. A name with no extension becomes a markdown note.
+ * A path is rejected because the folder is chosen separately.
+ */
+export function saveAsFileName(name: string): string | null {
+	const trimmed = name.trim();
+	if (!trimmed || /[\\/\0]/.test(trimmed) || trimmed === '.' || trimmed === '..') return null;
+	const file = trimmed.includes('.') ? trimmed : `${trimmed}.md`;
+	if (file === '.md') return null;
+	return file;
 }
 
 /**

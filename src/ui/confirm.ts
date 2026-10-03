@@ -1,5 +1,4 @@
 import { App, Modal, Notice } from 'obsidian';
-import { SAVE_NEEDS_FILE } from '../diff/blank-side';
 
 function settle<T>(flag: { done: boolean }, resolve: (value: T) => void, value: T): void {
 	if (flag.done) return;
@@ -32,25 +31,22 @@ export function confirm(app: App, title: string, message: string): Promise<boole
 	});
 }
 
-export function askDirty(app: App, sideLabel: string, canSave: boolean): Promise<'save' | 'discard' | 'cancel'> {
+/** Linked notes offer Save. Text with no note offers Save as. */
+export function askUnsaved(app: App, letter: 'A' | 'B', mode: 'save' | 'save-as'): Promise<'save' | 'discard' | 'cancel'> {
+	const saveAs = mode === 'save-as';
 	return new Promise((resolve) => {
 		const flag = { done: false };
 		const modal = new Modal(app);
-		modal.titleEl.setText(`${sideLabel} has unsaved edits`);
+		modal.titleEl.setText(saveAs ? `${letter} not saved to a note` : `${letter} has unsaved edits`);
 		modal.contentEl.createEl('p', {
-			text: canSave
-				? 'Save the edits, discard them, or cancel and keep this file open.'
-				: `${SAVE_NEEDS_FILE} Discard the edits, or cancel and keep them.`,
+			text: saveAs
+				? 'Save it as a new note, discard it, or cancel and keep this diff open.'
+				: 'Save the note, discard the edits, or cancel and keep this diff open.',
 		});
 		const row = modal.contentEl.createDiv({ cls: 'modal-button-container' });
 		const cancel = row.createEl('button', { text: 'Cancel' });
 		const discard = row.createEl('button', { text: 'Discard' });
-		const save = row.createEl('button', { text: 'Save', cls: canSave ? 'mod-cta' : '' });
-		save.disabled = !canSave;
-		if (!canSave) {
-			save.title = SAVE_NEEDS_FILE;
-			save.setAttribute('aria-label', SAVE_NEEDS_FILE);
-		}
+		const save = row.createEl('button', { text: saveAs ? 'Save as' : 'Save', cls: 'mod-cta' });
 		cancel.addEventListener('click', () => {
 			settle(flag, resolve, 'cancel');
 			modal.close();
@@ -59,12 +55,10 @@ export function askDirty(app: App, sideLabel: string, canSave: boolean): Promise
 			settle(flag, resolve, 'discard');
 			modal.close();
 		});
-		if (canSave) {
-			save.addEventListener('click', () => {
-				settle(flag, resolve, 'save');
-				modal.close();
-			});
-		}
+		save.addEventListener('click', () => {
+			settle(flag, resolve, 'save');
+			modal.close();
+		});
 		modal.onClose = () => {
 			modal.contentEl.empty();
 			settle(flag, resolve, 'cancel');
@@ -73,7 +67,7 @@ export function askDirty(app: App, sideLabel: string, canSave: boolean): Promise
 	});
 }
 
-export function askString(app: App, title: string, initial: string, label: string): Promise<string | null> {
+export function askString(app: App, title: string, initial: string, label: string, confirmLabel = 'Rename'): Promise<string | null> {
 	return new Promise((resolve) => {
 		const flag = { done: false };
 		const modal = new Modal(app);
@@ -83,7 +77,7 @@ export function askString(app: App, title: string, initial: string, label: strin
 		input.style.width = '100%';
 		const row = modal.contentEl.createDiv({ cls: 'modal-button-container' });
 		const cancel = row.createEl('button', { text: 'Cancel' });
-		const ok = row.createEl('button', { text: 'Rename', cls: 'mod-cta' });
+		const ok = row.createEl('button', { text: confirmLabel, cls: 'mod-cta' });
 		const submit = () => {
 			const value = input.value.trim();
 			settle(flag, resolve, value || null);

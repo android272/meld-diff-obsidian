@@ -1,21 +1,40 @@
 import { ItemView, Menu, Notice, Scope, TFile, setIcon, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
 import { DIFF_VIEW_TYPE, HARD_FILE_BYTES, WARN_FILE_BYTES } from '../constants';
 import { copyPlainText, openInNewTab, populateFileMenu, promptMove, promptRename, revealInNavigation, trashWithConfirm } from '../diff/file-actions';
-import { pickVaultFile } from '../diff/file-suggest';
+import { pickFolder, pickVaultFile } from '../diff/file-suggest';
 import type { HunkAction } from '../diff/hunk-actions';
-import { SAVE_NEEDS_FILE, diffTabTitle, editorFace, sideHasFile, sideIsDirty, sidesToLoad } from '../diff/blank-side';
+import {
+	NO_FILE_LABEL,
+	NO_FILE_YET,
+	diffTabTitle,
+	editorFace,
+	saveAsFileName,
+	saveDisabledReason,
+	saveEnabled,
+	sideBadgeDirty,
+	sideHasFile,
+	sideIsDirty,
+	sidesToLoad,
+} from '../diff/blank-side';
 import { DiffSurface, type SurfaceHandlers, type SurfaceOptions, type SurfacePane } from '../diff/merge-host';
 import { wantsMobileLayout } from '../diff/mobile-mode';
 import { barActions, buildSummary, cursorCaption } from '../diff/mobile-model';
 import { shouldFlipSides, type OriginalPlacement } from '../diff/original-side';
 import { StackedHost } from '../diff/stacked-host';
 import type MeldDiffPlugin from '../main';
-import { fileName, formatBytes, isBinaryExtension, parentPath } from '../text-util';
-import { askDirty, confirm, noticeError } from '../ui/confirm';
+import { fileBarLabel, fileName, formatBytes, isBinaryExtension, joinPath, parentPath } from '../text-util';
+import { askString, askUnsaved, confirm, noticeError } from '../ui/confirm';
 import type { DiffViewState } from '../types';
 import { MobileShell } from './mobile-shell';
 
 type Side = 'left' | 'right';
+
+type LeafChrome = WorkspaceLeaf & {
+	updateHeader?: () => void;
+	tabHeaderInnerTitleEl?: HTMLElement;
+	tabHeaderEl?: HTMLElement;
+	detach: () => void;
+};
 
 interface SideState {
 	path: string | null;
@@ -69,6 +88,12 @@ export class DiffView extends ItemView {
 	private rightLabel: HTMLElement | null = null;
 	private leftSave: HTMLButtonElement | null = null;
 	private rightSave: HTMLButtonElement | null = null;
+	private leftBadge: HTMLElement | null = null;
+	private rightBadge: HTMLElement | null = null;
+	private originalDetach: (() => void) | null = null;
+	private closing = false;
+	private detachQueued = false;
+	private closePrompt: Promise<boolean> | null = null;
 	private readonly warned = new Set<string>();
 	private readonly autoTimers: Record<Side, number> = { left: 0, right: 0 };
 	/** Last Original-on-A value applied to this view. A change trades the two panes. */
@@ -109,7 +134,7 @@ export class DiffView extends ItemView {
 	}
 
 	canSaveSide(side: Side): boolean {
-		return sideHasFile(this.sides[side]);
+		return saveEnabled(this.sides[side]);
 	}
 
 	getState(): Record<string, unknown> {
@@ -134,6 +159,7 @@ export class DiffView extends ItemView {
 		this.mobile = wantsMobileLayout(this.plugin.settings);
 		this.originalOnA = this.plugin.settings.defaultLeftIsOriginal;
 		this.bindKeyboard();
+		this.installCloseGuard();
 		this.register(this.plugin.onSettings(() => this.applySettings()));
 		this.buildShell();
 		this.opened = true;
@@ -166,6 +192,8 @@ export class DiffView extends ItemView {
 		this.shell = null;
 		this.leftSave = null;
 		this.rightSave = null;
+		this.leftBadge = null;
+		this.rightBadge = null;
 		this.leftLabel = null;
 		this.rightLabel = null;
 		this.countEl = null;
@@ -182,14 +210,14 @@ export class DiffView extends ItemView {
 		const header = this.contentEl.createDiv({ cls: 'meld-diff-header' });
 		const files = header.createDiv({ cls: 'meld-diff-files' });
 		const leftBar = files.createDiv({ cls: 'meld-file-bar' });
-		this.sideBadge(leftBar, 'A');
+		this.leftBadge = this.sideBadge(leftBar, 'A');
 		this.leftLabel = this.fileButton(leftBar, 'left');
 		this.moreButton(leftBar, 'left');
 		this.leftSave = this.iconButton(leftBar, 'save', 'Save file A', () => { void this.save('left'); });
 		this.leftSave.addClass('meld-save');
 		this.iconButton(files, 'arrow-left-right', 'Swap A and B', () => this.swap());
 		const rightBar = files.createDiv({ cls: 'meld-file-bar' });
-		this.sideBadge(rightBar, 'B');
+		this.rightBadge = this.sideBadge(rightBar, 'B');
 		this.rightLabel = this.fileButton(rightBar, 'right');
 		this.moreButton(rightBar, 'right');
 		this.rightSave = this.iconButton(rightBar, 'save', 'Save file B', () => { void this.save('right'); });
@@ -263,9 +291,10 @@ export class DiffView extends ItemView {
 		const left = this.surface.getText('left');
 		const right = this.surface.getText('right');
 		for (const side of ['left', 'right'] as const) {
-			const chunk = this.sides[side].path ? this.surface.chunkAt(side) : null;
+			// No vault path still has an editor. Typed and pasted text is a diff.
+			const chunk = this.surface.chunkAt(side);
 			const armed = this.surface.armedOn(side);
-			const caption = this.sides[side].path ? cursorCaption(armed, left, right, chunk) : '';
+			const caption = cursorCaption(armed, left, right, chunk);
 			this.shell.setBar(side, barActions(chunk, side === 'left' ? 'a' : 'b'), armed, caption);
 		}
 	}
@@ -350,9 +379,12 @@ export class DiffView extends ItemView {
 
 	async onClose(): Promise<void> {
 		this.opened = false;
+		this.closing = true;
+		this.restoreDetach();
 		for (const side of ['left', 'right'] as const) {
 			if (this.autoTimers[side]) window.clearTimeout(this.autoTimers[side]);
 		}
+		this.markTabUnsaved(false);
 		this.surface?.destroy();
 		this.surface = null;
 		this.contentEl.empty();
@@ -387,11 +419,11 @@ export class DiffView extends ItemView {
 		this.sides.left = right;
 		this.sides.right = left;
 		this.loadedKey = `${this.sides.left.path ?? ''}\n${this.sides.right.path ?? ''}`;
+		this.scheduleAutosave('left');
+		this.scheduleAutosave('right');
 		this.mount();
 		this.renderChrome();
 		this.refreshTitle();
-		this.scheduleAutosave('left');
-		this.scheduleAutosave('right');
 		this.app.workspace.requestSaveLayout();
 	}
 
@@ -409,7 +441,39 @@ export class DiffView extends ItemView {
 	}
 
 	async saveFocused(): Promise<void> {
+		if (!sideHasFile(this.sides[this.focused])) {
+			new Notice(NO_FILE_YET);
+			return;
+		}
 		await this.save(this.focused);
+	}
+
+	/** Write every linked dirty side now. Unbound text is left for the user. */
+	async flushLinked(): Promise<void> {
+		for (const side of ['left', 'right'] as const) {
+			if (this.autoTimers[side]) window.clearTimeout(this.autoTimers[side]);
+			this.autoTimers[side] = 0;
+			if (!sideHasFile(this.sides[side]) || !sideIsDirty(this.sides[side])) continue;
+			await this.save(side);
+		}
+	}
+
+	hasUnsaved(): boolean {
+		return sideIsDirty(this.sides.left) || sideIsDirty(this.sides.right);
+	}
+
+	hasUnboundText(): boolean {
+		return (['left', 'right'] as const).some((side) => !sideHasFile(this.sides[side]) && sideIsDirty(this.sides[side]));
+	}
+
+	/** Save or Save as, or discard, for each unsaved side. Cancel leaves the diff open. */
+	resolveUnsaved(): Promise<boolean> {
+		if (this.closePrompt) return this.closePrompt;
+		const run = this.promptUnsaved().finally(() => {
+			this.closePrompt = null;
+		});
+		this.closePrompt = run;
+		return run;
 	}
 
 	async pickLeft(): Promise<void> {
@@ -510,21 +574,63 @@ export class DiffView extends ItemView {
 		return null;
 	}
 
-	private sideName(side: Side): string {
+	private sideName(side: Side): 'A' | 'B' {
 		return side === 'left' ? 'A' : 'B';
 	}
 
 	private async confirmReplace(side: Side): Promise<boolean> {
 		if (!this.isDirty(side)) return true;
-		const name = this.sideName(side);
-		const choice = await askDirty(this.app, sideHasFile(this.sides[side]) ? `File ${name}` : name, this.canSaveSide(side));
+		return this.promptSide(side);
+	}
+
+	private async promptUnsaved(): Promise<boolean> {
+		const discards: Side[] = [];
+		for (const side of ['left', 'right'] as const) {
+			if (!this.isDirty(side)) continue;
+			const linked = sideHasFile(this.sides[side]);
+			const choice = await askUnsaved(this.app, this.sideName(side), linked ? 'save' : 'save-as');
+			if (choice === 'cancel') return false;
+			if (choice === 'discard') {
+				discards.push(side);
+				continue;
+			}
+			const wrote = linked ? await this.save(side) : await this.saveAs(side);
+			if (!wrote) return false;
+		}
+		for (const side of discards) this.acceptDiscard(side);
+		return true;
+	}
+
+	private async promptSide(side: Side): Promise<boolean> {
+		if (!this.isDirty(side)) return true;
+		const linked = sideHasFile(this.sides[side]);
+		const choice = await askUnsaved(this.app, this.sideName(side), linked ? 'save' : 'save-as');
 		if (choice === 'cancel') return false;
-		if (choice === 'discard') return true;
-		return this.save(side);
+		if (choice === 'discard') {
+			this.acceptDiscard(side);
+			return true;
+		}
+		return linked ? this.save(side) : this.saveAs(side);
+	}
+
+	private acceptDiscard(side: Side): void {
+		if (this.autoTimers[side]) window.clearTimeout(this.autoTimers[side]);
+		this.autoTimers[side] = 0;
+		const text = this.surface?.getText(side) ?? this.sides[side].text;
+		this.sides[side].text = text;
+		this.sides[side].saved = text;
+		this.renderSaveState();
 	}
 
 	private isDirty(side: Side): boolean {
 		return sideIsDirty(this.sides[side]);
+	}
+
+	/** A linked edit stays quiet while autosave is about to write it. */
+	private linkedDirtyVisible(side: Side): boolean {
+		if (!sideBadgeDirty(this.sides[side])) return false;
+		if (!this.plugin.settings.autosave) return true;
+		return this.autoTimers[side] === 0;
 	}
 
 	private async readSide(path: string | null): Promise<SideState> {
@@ -609,6 +715,7 @@ export class DiffView extends ItemView {
 		if (this.loading) return;
 		this.sides[side].text = text;
 		this.scheduleAutosave(side);
+		this.renderSaveState();
 		this.maybePromptIdentical();
 	}
 
@@ -664,21 +771,19 @@ export class DiffView extends ItemView {
 	async save(side: Side): Promise<boolean> {
 		const state = this.sides[side];
 		const path = state.path;
-		if (!path) {
-			new Notice(SAVE_NEEDS_FILE);
-			return false;
-		}
-		if (state.binary || state.tooBig) {
-			new Notice('This side is not a text file.');
-			return false;
-		}
+		if (!path || state.binary || state.tooBig) return false;
 		const text = this.surface?.getText(side) ?? state.text;
 		state.text = text;
+		if (text === state.saved && !state.deleted && !state.missing) {
+			this.renderSaveState();
+			return true;
+		}
 		try {
 			const existing = this.app.vault.getAbstractFileByPath(path);
 			if (existing instanceof TFile) await this.app.vault.modify(existing, text);
 			else if (existing) {
 				new Notice('That path is a folder.');
+				this.renderSaveState();
 				return false;
 			} else await this.app.vault.create(path, text);
 			state.saved = text;
@@ -686,6 +791,58 @@ export class DiffView extends ItemView {
 			state.missing = false;
 			state.disk = false;
 			this.renderBanners();
+			this.renderSaveState();
+			return true;
+		} catch (error) {
+			noticeError(error, 'Could not save the file');
+			this.renderSaveState();
+			return false;
+		}
+	}
+
+	/** Ask for a folder and a name, write the buffer, and bind this side to the new note. */
+	async saveAs(side: Side): Promise<boolean> {
+		const state = this.sides[side];
+		if (state.binary || state.tooBig) {
+			new Notice('This side is not a text file.');
+			return false;
+		}
+		const folder = await pickFolder(this.app, `Save ${this.sideName(side)} to folder`);
+		if (!folder) return false;
+		const suggested = state.path ? fileName(state.path) : 'Untitled.md';
+		const entered = await askString(this.app, `Save ${this.sideName(side)} as`, suggested, 'Note name', 'Save');
+		if (!entered) return false;
+		const name = saveAsFileName(entered);
+		if (!name) {
+			new Notice('Enter a file name, not a path.');
+			return false;
+		}
+		if (isBinaryExtension(name)) {
+			new Notice('Choose a text note name.');
+			return false;
+		}
+		const path = joinPath(folder.isRoot() ? '' : folder.path, name);
+		if (this.app.vault.getAbstractFileByPath(path)) {
+			new Notice('A file with that name is already in the folder.');
+			return false;
+		}
+		const text = this.surface?.getText(side) ?? state.text;
+		try {
+			const created = await this.app.vault.create(path, text);
+			state.path = path;
+			state.text = text;
+			state.saved = text;
+			state.deleted = false;
+			state.missing = false;
+			state.disk = false;
+			state.binary = false;
+			state.tooBig = false;
+			state.size = created.stat.size;
+			this.loadedKey = `${this.sides.left.path ?? ''}\n${this.sides.right.path ?? ''}`;
+			this.mount();
+			this.renderChrome();
+			this.refreshTitle();
+			this.app.workspace.requestSaveLayout();
 			return true;
 		} catch (error) {
 			noticeError(error, 'Could not save the file');
@@ -735,6 +892,7 @@ export class DiffView extends ItemView {
 	}
 
 	private applySettings(): void {
+		this.syncAutosave();
 		const originalOnA = this.plugin.settings.defaultLeftIsOriginal;
 		const flipped = originalOnA !== this.originalOnA;
 		this.originalOnA = originalOnA;
@@ -752,7 +910,7 @@ export class DiffView extends ItemView {
 		}
 		if (mobileChanged) return;
 
-		this.updateToggles();
+		this.renderSaveState();
 		if (!this.surface) return;
 		const options = this.surfaceOptions();
 		if (options.scanLimit !== this.appliedScan) {
@@ -782,7 +940,7 @@ export class DiffView extends ItemView {
 		this.renderLabel(this.leftLabel, this.sides.left);
 		this.renderLabel(this.rightLabel, this.sides.right);
 		this.renderBanners();
-		this.updateToggles();
+		this.renderSaveState();
 		if (this.shell) this.refreshMobileBars();
 	}
 
@@ -790,13 +948,19 @@ export class DiffView extends ItemView {
 		if (!el) return;
 		el.empty();
 		if (!state.path) {
-			el.createSpan({ cls: 'meld-picker-empty', text: 'Select a file' });
+			el.createSpan({ cls: 'meld-picker-empty', text: NO_FILE_LABEL });
+			el.removeAttribute('title');
+			el.setAttribute('aria-label', NO_FILE_LABEL);
 			return;
 		}
-		el.createSpan({ cls: 'meld-picker-name', text: fileName(state.path) });
-		const parent = parentPath(state.path);
-		if (parent) el.createSpan({ cls: 'meld-picker-parent', text: parent });
+		const { keep, tail } = fileBarLabel(state.path);
+		const strut = el.createSpan({ cls: 'meld-picker-strut', text: keep });
+		strut.setAttribute('aria-hidden', 'true');
+		const line = el.createSpan({ cls: 'meld-picker-line' });
+		line.createSpan({ cls: 'meld-picker-keep', text: keep });
+		if (tail) line.createSpan({ cls: 'meld-picker-tail', text: tail });
 		el.title = state.path;
+		el.setAttribute('aria-label', state.path);
 	}
 
 	private renderBanners(): void {
@@ -842,9 +1006,54 @@ export class DiffView extends ItemView {
 	}
 
 	private refreshTitle(): void {
-		const leaf = this.leaf as WorkspaceLeaf & { updateHeader?: () => void; tabHeaderInnerTitleEl?: HTMLElement };
+		const leaf = this.leaf as LeafChrome;
 		leaf.tabHeaderInnerTitleEl?.setText(this.getDisplayText());
 		leaf.updateHeader?.();
+		this.markTabUnsaved();
+	}
+
+	private syncAutosave(): void {
+		if (!this.plugin.settings.autosave) {
+			for (const side of ['left', 'right'] as const) {
+				if (this.autoTimers[side]) window.clearTimeout(this.autoTimers[side]);
+				this.autoTimers[side] = 0;
+			}
+			return;
+		}
+		this.scheduleAutosave('left');
+		this.scheduleAutosave('right');
+	}
+
+	private renderSaveState(): void {
+		this.paintBadge(this.leftBadge, 'A', this.linkedDirtyVisible('left'));
+		this.paintBadge(this.rightBadge, 'B', this.linkedDirtyVisible('right'));
+		this.shell?.setBadgeDirty('left', this.linkedDirtyVisible('left'));
+		this.shell?.setBadgeDirty('right', this.linkedDirtyVisible('right'));
+		this.updateToggles();
+		this.markTabUnsaved();
+	}
+
+	private paintBadge(badge: HTMLElement | null, letter: 'A' | 'B', dirty: boolean): void {
+		if (!badge) return;
+		badge.toggleClass('is-dirty', dirty);
+		if (dirty) badge.setAttribute('aria-label', `${letter} has unsaved edits`);
+		else badge.removeAttribute('aria-label');
+	}
+
+	private markTabUnsaved(force?: boolean): void {
+		const leaf = this.leaf as LeafChrome;
+		const unsaved = force === false ? false : this.tabShowsUnsaved();
+		leaf.tabHeaderEl?.toggleClass('mod-unsaved', unsaved);
+	}
+
+	/** Tab dot for a linked edit the user must save, or unbound text. A pending autosave stays quiet. */
+	private tabShowsUnsaved(): boolean {
+		for (const side of ['left', 'right'] as const) {
+			if (!this.isDirty(side)) continue;
+			if (!sideHasFile(this.sides[side])) return true;
+			if (this.linkedDirtyVisible(side)) return true;
+		}
+		return false;
 	}
 
 	private updateToggles(): void {
@@ -858,7 +1067,7 @@ export class DiffView extends ItemView {
 		button.toggleClass('meld-save-hidden', !manualSave);
 		const enabled = this.canSaveSide(side);
 		button.disabled = !enabled;
-		const label = enabled ? `Save file ${this.sideName(side)}` : SAVE_NEEDS_FILE;
+		const label = enabled ? `Save file ${this.sideName(side)}` : saveDisabledReason(this.sides[side]);
 		button.setAttribute('aria-label', label);
 		button.title = label;
 	}
@@ -869,8 +1078,8 @@ export class DiffView extends ItemView {
 		return button;
 	}
 
-	private sideBadge(parent: HTMLElement, letter: 'A' | 'B'): void {
-		parent.createSpan({ cls: `meld-side-badge is-${letter === 'A' ? 'a' : 'b'}`, text: letter });
+	private sideBadge(parent: HTMLElement, letter: 'A' | 'B'): HTMLElement {
+		return parent.createSpan({ cls: `meld-side-badge is-${letter === 'A' ? 'a' : 'b'}`, text: letter });
 	}
 
 	private moreButton(parent: HTMLElement, side: Side): void {
@@ -909,13 +1118,22 @@ export class DiffView extends ItemView {
 	}
 
 	private addSaveItem(menu: Menu, side: Side): void {
+		const state = this.sides[side];
 		menu.addItem((item) => {
 			item.setIcon('save');
 			if (!this.canSaveSide(side)) {
-				item.setTitle(disabledSaveTitle()).setDisabled(true);
+				item.setTitle(disabledSaveTitle(saveDisabledReason(state))).setDisabled(true);
 				return;
 			}
 			item.setTitle('Save').onClick(() => { void this.save(side); });
+		});
+		menu.addItem((item) => {
+			item.setIcon('file-plus');
+			if (state.binary || state.tooBig) {
+				item.setTitle('Save as…').setDisabled(true);
+				return;
+			}
+			item.setTitle('Save as…').onClick(() => { void this.saveAs(side); });
 		});
 	}
 
@@ -943,15 +1161,52 @@ export class DiffView extends ItemView {
 			});
 		});
 	}
+
+	private installCloseGuard(): void {
+		const leaf = this.leaf as LeafChrome;
+		const original = leaf.detach.bind(leaf);
+		this.originalDetach = original;
+		leaf.detach = () => {
+			void this.onDetachRequested();
+		};
+	}
+
+	private async onDetachRequested(): Promise<void> {
+		if (this.closing || this.detachQueued) return;
+		this.detachQueued = true;
+		let proceed = false;
+		try {
+			if (this.plugin.settings.autosave) await this.flushLinked();
+			if (this.hasUnsaved()) {
+				const ok = await this.resolveUnsaved();
+				if (!ok || this.closing) return;
+			}
+			proceed = true;
+		} catch (error) {
+			console.error(error);
+		} finally {
+			if (!proceed) this.detachQueued = false;
+		}
+		if (!proceed || this.closing) return;
+		this.closing = true;
+		this.restoreDetach();
+		this.originalDetach?.();
+	}
+
+	private restoreDetach(): void {
+		const leaf = this.leaf as LeafChrome;
+		if (!this.originalDetach) return;
+		leaf.detach = this.originalDetach;
+	}
 }
 
-function disabledSaveTitle(): DocumentFragment {
+function disabledSaveTitle(reason: string): DocumentFragment {
 	const frag = document.createDocumentFragment();
 	const name = document.createElement('span');
 	name.textContent = 'Save';
 	const caption = document.createElement('span');
 	caption.className = 'meld-menu-caption';
-	caption.textContent = SAVE_NEEDS_FILE;
+	caption.textContent = reason;
 	frag.append(name, caption);
 	return frag;
 }

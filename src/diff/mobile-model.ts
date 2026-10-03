@@ -87,46 +87,6 @@ function visibleLength(text: string): number {
 	return text.endsWith('\n') ? Math.max(0, text.length - 1) : text.length;
 }
 
-export function clipPreview(text: string, max = 28): string {
-	const flat = text.replace(/\s+/g, ' ').trim();
-	if (!flat) return '';
-	if (flat.length <= max) return flat;
-	return `${flat.slice(0, Math.max(1, max - 1))}…`;
-}
-
-export function sideSnippet(doc: string, from: number, to: number, side: 'A' | 'B'): string {
-	const text = clipPreview(chunkSlice(doc, from, to).replace(/\n$/, ''));
-	if (!text) return `(nothing on ${side})`;
-	return text;
-}
-
-export function idleCaption(left: string, right: string, chunk: RangeChunk): string {
-	return `Hunk: ${sideSnippet(left, chunk.fromA, chunk.toA, 'A')} → ${sideSnippet(right, chunk.fromB, chunk.toB, 'B')}`;
-}
-
-function quoted(doc: string, from: number, to: number): string {
-	const text = clipPreview(chunkSlice(doc, from, to).replace(/\n$/, ''));
-	return text ? `“${text}”` : '“”';
-}
-
-export function armedCaption(action: MobileWrite, left: string, right: string, chunk: RangeChunk): string {
-	const writeLeft = action.endsWith('left');
-	const place = writeLeft ? 'A' : 'B';
-	const destDoc = writeLeft ? left : right;
-	const srcDoc = writeLeft ? right : left;
-	const destFrom = writeLeft ? chunk.fromA : chunk.fromB;
-	const destTo = writeLeft ? chunk.toA : chunk.toB;
-	const srcFrom = writeLeft ? chunk.fromB : chunk.fromA;
-	const srcTo = writeLeft ? chunk.toB : chunk.toA;
-	if (action.startsWith('replace')) {
-		if (destFrom === destTo) return `Insert on ${place}`;
-		return `Replace ${place}: ${quoted(destDoc, destFrom, destTo)} will become ${quoted(srcDoc, srcFrom, srcTo)}`;
-	}
-	if (action.startsWith('insert-above')) return `Insert above ${place}: ${quoted(srcDoc, srcFrom, srcTo)}`;
-	if (action.startsWith('insert-below')) return `Insert below ${place}: ${quoted(srcDoc, srcFrom, srcTo)}`;
-	return `Delete on ${place}: ${quoted(destDoc, destFrom, destTo)}`;
-}
-
 export function barActions(chunk: RangeChunk | null, side: 'a' | 'b'): BarActions {
 	if (!chunk) return { replace: false, above: false, below: false, delete: false };
 	const empty = side === 'a' ? chunk.fromA === chunk.toA : chunk.fromB === chunk.toB;
@@ -139,11 +99,14 @@ export function actionTip(key: keyof BarActions, actions: BarActions, label: str
 	return label;
 }
 
-export function cursorCaption(armed: MobileWrite | null, left: string, right: string, chunk: RangeChunk | null): string {
-	if (armed && chunk) return armedCaption(armed, left, right, chunk);
-	if (!chunk) return 'No change at the cursor';
-	if (!hunkHasBothSides(chunk)) return INSERT_AROUND_REASON;
-	return idleCaption(left, right, chunk);
+/** The file bar does not describe the hunk or the armed edit. Disabled buttons keep their own labels. */
+export function cursorCaption(
+	_armed: MobileWrite | null,
+	_left: string,
+	_right: string,
+	_chunk: RangeChunk | null,
+): string {
+	return '';
 }
 
 export interface ScrollBlock {

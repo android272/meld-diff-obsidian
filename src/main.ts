@@ -80,6 +80,52 @@ export default class MeldDiffPlugin extends Plugin {
 			}
 		}));
 		if (this.settings.scanOnStartup) this.index.queue(true);
+		this.registerEvent(this.app.workspace.on('quit', (tasks) => {
+			tasks.add(() => this.prepareQuit());
+		}));
+	}
+
+	/**
+	 * Quit task. Autosave writes linked dirty sides first. Anything still unsaved
+	 * (a note with autosave off, a failed write, or text that is not a note) is confirmed.
+	 * If a dialog cannot be shown, linked sides are still written and unbound text is not discarded.
+	 */
+	private async prepareQuit(): Promise<void> {
+		const views = this.diffViews();
+		if (this.settings.autosave) {
+			for (const view of views) await view.flushLinked();
+		}
+		if (!views.some((view) => view.hasUnsaved())) return;
+		if (!this.canPrompt()) {
+			for (const view of views) await view.flushLinked();
+			if (views.some((view) => view.hasUnboundText())) {
+				throw new Error('Meld Diff: unsaved text is not in a note');
+			}
+			return;
+		}
+		for (const view of views) {
+			if (!view.hasUnsaved()) continue;
+			let ok = false;
+			try {
+				ok = await view.resolveUnsaved();
+			} catch (error) {
+				console.error(error);
+				for (const open of views) await open.flushLinked();
+				if (views.some((open) => open.hasUnboundText())) {
+					throw new Error('Meld Diff: unsaved text is not in a note');
+				}
+				return;
+			}
+			if (!ok) throw new Error('Meld Diff: quit cancelled');
+		}
+	}
+
+	private canPrompt(): boolean {
+		try {
+			return !!this.app.workspace.containerEl?.isConnected;
+		} catch {
+			return false;
+		}
 	}
 
 	onunload(): void {

@@ -90,7 +90,7 @@ export const DEFAULT_SETTINGS: MeldDiffSettings = {
 	collapseUnchanged: false,
 	collapseMargin: 3,
 	scanLimit: 10000,
-	autosave: false,
+	autosave: true,
 	autosaveMs: 750,
 	defaultLeftIsOriginal: true,
 	alignScroll: true,

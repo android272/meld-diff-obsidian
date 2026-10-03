@@ -1,13 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { INSERT_AROUND_REASON } from '../src/diff/hunk-text';
-import { actionTip, alignedDocPos, armedCaption, barActions, buildSummary, cursorCaption, docPosAtScroll, idleCaption, scrollTopForPos, stepChunk } from '../src/diff/mobile-model';
+import { actionTip, alignedDocPos, barActions, buildSummary, cursorCaption, docPosAtScroll, scrollTopForPos, stepChunk } from '../src/diff/mobile-model';
 import { mergeSettings } from '../src/settings';
-
-test('idle caption names the hunk and an empty side', () => {
-	const caption = idleCaption('adipiscing\n', '', { fromA: 0, toA: 11, fromB: 0, toB: 0 });
-	assert.equal(caption, 'Hunk: adipiscing → (nothing on B)');
-});
 
 test('prepend and append follow a two-sided cursor hunk, and replace stays on', () => {
 	const both = { fromA: 0, toA: 4, fromB: 0, toB: 3 };
@@ -27,28 +22,14 @@ test('prepend and append follow a two-sided cursor hunk, and replace stays on', 
 	assert.equal(actionTip('above', barActions(both, 'a'), 'Insert this above the hunk on B'), 'Insert this above the hunk on B');
 });
 
-test('a one-sided hunk says there is nothing to insert around', () => {
+test('the file bar does not caption the hunk or the armed edit', () => {
 	const onlyA = { fromA: 0, toA: 11, fromB: 0, toB: 0 };
-	assert.equal(cursorCaption(null, 'adipiscing\n', '', onlyA), INSERT_AROUND_REASON);
-	assert.equal(
-		cursorCaption('replace-right', 'adipiscing\n', 'keep\n', { fromA: 0, toA: 11, fromB: 5, toB: 5 }),
-		'Insert on B',
-	);
-	const both = { fromA: 0, toA: 4, fromB: 0, toB: 5 };
-	assert.equal(cursorCaption(null, 'amet\n', 'beta\n', both), idleCaption('amet\n', 'beta\n', both));
-	assert.equal(cursorCaption(null, '', '', null), 'No change at the cursor');
-});
-
-test('replace caption quotes both sides, and an empty destination is an insert', () => {
-	const chunk = { fromA: 0, toA: 11, fromB: 0, toB: 5 };
-	assert.equal(
-		armedCaption('replace-right', 'adipiscing\n', 'amet\n', chunk),
-		'Replace B: “amet” will become “adipiscing”',
-	);
-	assert.equal(
-		armedCaption('replace-right', 'adipiscing\n', 'keep\n', { fromA: 0, toA: 11, fromB: 5, toB: 5 }),
-		'Insert on B',
-	);
+	const both = { fromA: 0, toA: 11, fromB: 0, toB: 5 };
+	assert.equal(cursorCaption(null, 'adipiscing\n', '', onlyA), '');
+	assert.equal(cursorCaption(null, 'adipiscing\n', 'amet\n', both), '');
+	assert.equal(cursorCaption('replace-right', 'adipiscing\n', 'amet\n', both), '');
+	assert.equal(cursorCaption('insert-above-right', 'adipiscing\n', 'amet\n', both), '');
+	assert.equal(cursorCaption(null, '', '', null), '');
 });
 
 test('summary keeps unchanged text and counts token changes', () => {

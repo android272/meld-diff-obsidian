@@ -9,6 +9,7 @@ await esbuild.build({
 		'tests/mobile-model.test.ts',
 		'tests/original-side.test.ts',
 		'tests/blank-side.test.ts',
+		'tests/file-bar-label.test.ts',
 	],
 	bundle: true,
 	platform: 'node',

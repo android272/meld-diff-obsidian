@@ -194,6 +194,8 @@ body {
 	gap: 6px;
 	align-items: center;
 	min-width: 0;
+	overflow-x: auto;
+	overflow-y: hidden;
 }
 
 .meld-file-bar {
@@ -201,13 +203,37 @@ body {
 	flex: 1 1 0;
 	gap: 6px;
 	align-items: center;
-	min-width: 0;
+	min-width: auto;
 }
 
 .meld-side-badge {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
 	flex: none;
 	font-weight: 700;
 	line-height: 1;
+}
+
+.meld-side-badge.is-dirty::after {
+	content: '';
+	width: 6px;
+	height: 6px;
+	margin-inline-start: 3px;
+	border-radius: 50%;
+	background: currentColor;
+	flex: none;
+}
+
+.workspace-tab-header.mod-unsaved[data-type='meld-diff-editor'] .workspace-tab-header-inner-title::before {
+	content: '';
+	display: inline-block;
+	width: 6px;
+	height: 6px;
+	margin-inline-end: 6px;
+	border-radius: 50%;
+	background: var(--text-faint);
+	vertical-align: 1px;
 }
 
 .meld-side-badge.is-a {
@@ -219,12 +245,14 @@ body {
 }
 
 .meld-file-button {
-	flex: 1;
-	min-width: 0;
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	gap: 1px;
+	flex: 1 1 auto;
+	min-width: auto;
+	display: grid;
+	grid-template-columns: minmax(auto, 1fr);
+	align-items: center;
+	box-sizing: border-box;
+	overflow: visible;
+	white-space: normal;
 	text-align: left;
 	background: var(--background-modifier-form-field);
 	color: var(--text-normal);
@@ -234,17 +262,43 @@ body {
 	cursor: pointer;
 }
 
-.meld-picker-name,
-.meld-picker-parent,
-.meld-picker-empty {
-	max-width: 100%;
+.meld-picker-strut,
+.meld-picker-line {
+	grid-area: 1 / 1;
+}
+
+.meld-picker-strut {
+	visibility: hidden;
+	white-space: nowrap;
+	pointer-events: none;
+}
+
+.meld-picker-line {
+	display: flex;
+	min-width: 0;
+	overflow: hidden;
+	align-items: baseline;
+}
+
+.meld-picker-keep {
+	flex: none;
+	white-space: nowrap;
+}
+
+.meld-picker-tail {
+	flex: 0 1 auto;
+	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.meld-picker-parent,
 .meld-picker-empty {
+	min-width: 0;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 	color: var(--text-faint);
 	font-size: var(--font-ui-smaller);
 }
@@ -765,14 +819,35 @@ settings:
 	display: flex;
 	align-items: center;
 	gap: 4px;
+	flex: none;
 	padding: 4px 6px;
+	min-width: 0;
+	overflow-x: auto;
+	overflow-y: hidden;
 	background: var(--background-secondary);
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
 .meld-diff-view.is-mobile .meld-mobile-bar .meld-file-button {
-	flex: 1 1 80px;
-	min-width: 0;
+	flex: 1 1 auto;
+	height: 28px;
+	min-height: 28px;
+	max-height: 28px;
+	padding: 0 8px;
+}
+
+.meld-diff-view.is-mobile .meld-mobile-bar .meld-picker-line,
+.meld-diff-view.is-mobile .meld-mobile-bar .meld-picker-strut,
+.meld-diff-view.is-mobile .meld-mobile-bar .meld-picker-empty {
+	height: 26px;
+	line-height: 26px;
+}
+
+.meld-diff-view.is-mobile .meld-mobile-bar .meld-more {
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	flex: none;
 }
 
 .meld-diff-view.is-mobile .meld-mobile-actions {
@@ -801,6 +876,7 @@ settings:
 }
 
 .meld-diff-view.is-mobile .meld-hunk-caption {
+	flex: none;
 	padding: 0 8px 4px;
 	background: var(--background-secondary);
 	color: var(--text-muted);

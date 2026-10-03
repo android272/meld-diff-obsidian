@@ -4,8 +4,14 @@ import { Chunk } from '@codemirror/merge';
 import { Text } from '@codemirror/state';
 import {
 	EMPTY_EDITOR_HINT,
+	NO_CHANGES,
+	NO_FILE_YET,
 	diffTabTitle,
 	editorFace,
+	saveAsFileName,
+	saveDisabledReason,
+	saveEnabled,
+	sideBadgeDirty,
 	sideHasFile,
 	sideIsDirty,
 	sidesToLoad,
@@ -67,6 +73,36 @@ test('binary and deleted files stay non-editors or read-only', () => {
 	const deleted = editorFace(buffer({ path: 'a.md', deleted: true, text: 'x', saved: 'x' }), 'a.md · 1 B');
 	assert.equal(deleted.readOnly, true);
 	assert.equal(deleted.placeholder, null);
+});
+
+test('an empty unbound side is not unsaved and typed text is not a linked edit', () => {
+	const empty = buffer();
+	const typed = buffer({ text: 'alpha' });
+	assert.equal(sideIsDirty(empty), false);
+	assert.equal(sideBadgeDirty(empty), false);
+	assert.equal(sideBadgeDirty(typed), false);
+	assert.equal(saveEnabled(typed), false);
+	assert.equal(saveDisabledReason(typed), NO_FILE_YET);
+});
+
+test('a linked dirty side can be saved and a clean side cannot', () => {
+	const dirty = buffer({ path: 'Notes/a.md', text: 'new', saved: 'old' });
+	const clean = buffer({ path: 'Notes/a.md', text: 'old', saved: 'old' });
+	assert.equal(sideIsDirty(dirty), true);
+	assert.equal(sideBadgeDirty(dirty), true);
+	assert.equal(saveEnabled(dirty), true);
+	assert.equal(sideBadgeDirty(clean), false);
+	assert.equal(saveEnabled(clean), false);
+	assert.equal(saveDisabledReason(clean), NO_CHANGES);
+	assert.equal(saveEnabled(buffer({ path: 'a.md', text: 'x', saved: 'x', deleted: true })), true);
+});
+
+test('save as turns a name into a note and rejects a path', () => {
+	assert.equal(saveAsFileName('Note'), 'Note.md');
+	assert.equal(saveAsFileName('Note.md'), 'Note.md');
+	assert.equal(saveAsFileName('  '), null);
+	assert.equal(saveAsFileName('folder/note'), null);
+	assert.equal(saveAsFileName('.md'), null);
 });
 
 test('picking a file reloads only that side once the comparison is open', () => {

@@ -53,6 +53,7 @@ export class MobileShell {
 	readonly editors: Record<Side, HTMLElement>;
 	private readonly labels: Record<Side, HTMLElement>;
 	private readonly captions: Record<Side, HTMLElement>;
+	private readonly badges: Record<Side, HTMLElement>;
 	private readonly panes: Record<Side, HTMLElement>;
 	private readonly buttons: Record<Side, HTMLButtonElement[]> = { left: [], right: [] };
 	private readonly summaryEl: HTMLElement;
@@ -71,6 +72,7 @@ export class MobileShell {
 		const right = this.pane(stack, 'right', 'B', BOTTOM_ACTIONS);
 		this.panes = { left: left.pane, right: right.pane };
 		this.labels = { left: left.label, right: right.label };
+		this.badges = { left: left.badge, right: right.badge };
 		this.captions = { left: left.caption, right: right.caption };
 		this.editors = { left: left.editor, right: right.editor };
 		const dock = this.root.createDiv({ cls: 'meld-mobile-dock' });
@@ -90,6 +92,13 @@ export class MobileShell {
 
 	label(side: Side): HTMLElement {
 		return this.labels[side];
+	}
+
+	setBadgeDirty(side: Side, dirty: boolean): void {
+		const badge = this.badges[side];
+		badge.toggleClass('is-dirty', dirty);
+		if (dirty) badge.setAttribute('aria-label', `${badge.getText()} has unsaved edits`);
+		else badge.removeAttribute('aria-label');
 	}
 
 	setBar(side: Side, actions: BarActions, armed: HunkAction | null, caption: string): void {
@@ -154,10 +163,10 @@ export class MobileShell {
 		this.root.addClass('is-summary');
 	}
 
-	private pane(parent: HTMLElement, side: Side, letter: 'A' | 'B', actions: ActionSpec[]): { pane: HTMLElement; label: HTMLElement; caption: HTMLElement; editor: HTMLElement } {
+	private pane(parent: HTMLElement, side: Side, letter: 'A' | 'B', actions: ActionSpec[]): { pane: HTMLElement; label: HTMLElement; badge: HTMLElement; caption: HTMLElement; editor: HTMLElement } {
 		const pane = parent.createDiv({ cls: 'meld-mobile-pane' });
 		const bar = pane.createDiv({ cls: 'meld-mobile-bar' });
-		bar.createSpan({ cls: `meld-side-badge is-${letter === 'A' ? 'a' : 'b'}`, text: letter });
+		const badge = bar.createSpan({ cls: `meld-side-badge is-${letter === 'A' ? 'a' : 'b'}`, text: letter });
 		const label = bar.createEl('button', { cls: 'meld-file-button' });
 		label.addEventListener('click', () => this.handlers.pick(side));
 		const more = bar.createEl('button', { cls: 'clickable-icon meld-more', attr: { 'aria-label': `${letter} file actions` } });
@@ -184,9 +193,9 @@ export class MobileShell {
 			event.stopPropagation();
 			this.handlers.focus(side);
 		}, true);
-		const caption = pane.createDiv({ cls: 'meld-hunk-caption' });
+		const caption = pane.createDiv({ cls: 'meld-hunk-caption is-empty' });
 		const editor = pane.createDiv({ cls: 'meld-mobile-editor' });
-		return { pane, label, caption, editor };
+		return { pane, label, badge, caption, editor };
 	}
 
 	private iconButton(parent: HTMLElement, icon: string, fallback: string, label: string, action: (event: MouseEvent) => void): void {
