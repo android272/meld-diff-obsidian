@@ -1,21 +1,56 @@
 # Meld Diff
 
-Meld Diff adds two views to Obsidian. Both are normal tabs: park them in the main editor, the left sidebar, or the right sidebar. The left ribbon has a button for each view, and every action is a command you can bind to a hotkey. Conflict View finds files that match your conflict pattern (Syncthing by default: `name.sync-conflict-YYYYMMDD-HHMMSS-DEVICE.ext`) and pairs them with the original note. Diff View is a Meld-like split source editor: line and character diffs, connecting waves, copy left/right, insert above/below, delete hunk, and normal file ⋮ actions on each side. You can also pick any two files to compare.
+![icon.png](icon.png)
 
-Desktop only (Obsidian 1.6+).
+A two-pane diff inside Obsidian, the way Meld works on the desktop. Compare any two notes, or paste text that is not a note yet. It also finds sync-conflict files and pairs them with the original.
 
-## Develop
+![desktop-split.png](screenshots/desktop-split.png)
 
-```bash
-npm install
-npm test
-npm run build
-```
+If you already use Meld, the gestures are the same. Click an arrow to take that hunk. Shift-click deletes it. Hold Ctrl (Cmd on macOS) to insert above or below, only when both sides have text there.
 
-`npm run build` writes `main.js` next to `manifest.json` and `styles.css`. Copy or symlink this folder to `<vault>/.obsidian/plugins/meld-diff`, then enable Meld Diff in Settings → Community plugins. Reload Obsidian after each build. `npm run dev` rebuilds `main.js` on change.
+## This is for you if
 
-Files over 1.5 MB still open in the diff, with a warning. Files over 15 MB are listed but not loaded, so a huge file cannot freeze the app.
+- Syncthing, Nextcloud, Dropbox, or Obsidian Sync left a note.sync-conflict-… file next to a note and you want to merge it by hand.
+- You want to compare two notes in the vault without leaving Obsidian.
+- You want to paste a block from somewhere else, diff it against a note, and save the result as a new note.
 
-## Conflict patterns
+This is not a git client. It does not talk to Syncthing. It does not diff images, PDFs, or canvases.
 
-Syncthing is enabled by default. Obsidian Sync and Nextcloud presets are included and disabled. Add a regex or a glob (`*` and `**`) from Settings. An invalid regex is skipped instead of crashing the plugin. Each pattern card can test a vault path and shows the original it would recover.
+## Conflicts
+
+Conflict view lists originals and the conflict files next to them. Open a row and the pair loads in the diff. Syncthing names are recognized by default. Other tools can be added with a glob or a regex in settings.
+
+![conflict-list.png](screenshots/conflict-list.png)
+
+If the original is not in the same folder, the diff still opens and offers to find a note with that name. It will not load one from another folder unless you confirm.
+
+## The diff
+
+Both panes are source editors. Markdown stays raw, so [[links]], list markers, and punctuation are part of the diff.
+
+- Text only on A is red. Text only on B is green. A change on both sides is yellow, with the differing words marked.
+- The file bar shows the folder and the name (folder/note.md). The long .sync-conflict-… tail is what gets cut off.
+- **Original on A** puts the original on the left. On a phone, A is the top pane. Turn the setting off and the original opens on B.
+- Autosave is on for a side that is already a note. A side with no file says **No file** until you use Save as and pick a folder and a name.
+
+![Close-up of a changed line.png](screenshots/Close-up of a changed line.png)
+
+![Close-up of addition.png](screenshots/Close-up of addition.png)
+
+![Close-up of deletion.png](screenshots/Close-up of deletion.png)
+
+![Blank diff with pasted text on one side and a note on the other.png](screenshots/Blank diff with pasted text on one side and a note on the other.png)
+
+## Phone
+
+The same diff, stacked. Conflict view is in the left drawer, with Files and Search. The cursor picks the hunk. The buttons on the file bar replace, insert above, insert below, or delete it.
+
+![mobile-stack.png](screenshots/mobile-stack.png)
+
+## Colors
+
+Hunk colors follow the theme: red, green, yellow, orange. They do not follow the accent color. Settings and Style Settings can override them.
+
+## License
+
+MIT
