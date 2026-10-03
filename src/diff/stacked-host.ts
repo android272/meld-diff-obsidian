@@ -3,9 +3,9 @@ import { Compartment } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { Notice } from 'obsidian';
 import { isMarkdownPath } from '../text-util';
-import { activeLineExtensions, createCompartments, editorChromeEffects, lineNumberExtensions, paneExtensions, type PaneCompartments } from './editor-extensions';
-import { chunkAtCursor, applyHunkAction, type HunkAction } from './hunk-actions';
-import { hunkHasBothSides, type RangeChunk } from './hunk-text';
+import { createCompartments, paneChromeEffects, paneExtensions, type PaneCompartments } from './editor-extensions';
+import { chunkAtCursor, applyHunkAction, copyAllChunks, editAtCursor, type HunkAction } from './hunk-actions';
+import { hunkWriteAllowed, readOnlyNotice, type RangeChunk } from './hunk-text';
 import {
 	mobileArm,
 	mobileChunks,
@@ -18,7 +18,7 @@ import {
 import { alignedDocPos, stepChunk } from './mobile-model';
 import { docPosAtTop, positionDrawn, scrollTopToShow } from './scroll-sync';
 import type { SurfaceHandlers, SurfaceOptions, SurfacePane } from './merge-host';
-import { whitespaceExtensions } from './whitespace';
+import { defaultSurfaceOptions, fillPlaceholder, replacePaneDocument, surfaceCanReuse } from './surface-shared';
 
 interface StackedPane {
 	view: EditorView;
@@ -59,20 +59,7 @@ export class StackedHost {
 		private readonly slots: { left: HTMLElement; right: HTMLElement },
 		private readonly handlers: SurfaceHandlers,
 	) {
-		this.options = {
-			wrap: true,
-			showCurrentLine: true,
-			showLineNumbers: true,
-			showWhitespace: false,
-			highlight: true,
-			collapse: false,
-			collapseMargin: 3,
-			scanLimit: 10000,
-			dark: false,
-			tabSize: 4,
-			useTab: true,
-			aligned: true,
-		};
+		this.options = defaultSurfaceOptions();
 	}
 
 	show(left: SurfacePane, right: SurfacePane, options: SurfaceOptions): void {
@@ -90,18 +77,9 @@ export class StackedHost {
 
 	reconfigure(partial: Partial<SurfaceOptions>): void {
 		this.options = { ...this.options, ...partial };
-		const wrapExt = (on: boolean) => (on ? EditorView.lineWrapping : []);
-		const darkExt = (on: boolean) => EditorView.darkTheme.of(on);
 		for (const live of [this.left, this.right]) {
 			if (!live) continue;
-			const effects = [];
-			if (partial.wrap !== undefined) effects.push(live.slots.wrap.reconfigure(wrapExt(this.options.wrap)));
-			if (partial.showLineNumbers !== undefined) effects.push(live.slots.lineNumbers.reconfigure(lineNumberExtensions(this.options.showLineNumbers)));
-			if (partial.showWhitespace !== undefined) effects.push(live.slots.whitespace.reconfigure(whitespaceExtensions(this.options.showWhitespace)));
-			if (partial.showCurrentLine !== undefined || partial.showLineNumbers !== undefined) {
-				effects.push(live.slots.activeLine.reconfigure(activeLineExtensions(this.options.showCurrentLine, this.options.showLineNumbers)));
-			}
-			if (partial.dark !== undefined) effects.push(live.slots.dark.reconfigure(darkExt(this.options.dark)));
+			const effects = paneChromeEffects(live.slots, this.options, partial);
 			if (partial.highlight !== undefined) effects.push(live.intra.reconfigure(mobileIntra.of(this.options.highlight)));
 			if (effects.length) live.view.dispatch({ effects });
 		}
@@ -172,16 +150,8 @@ export class StackedHost {
 	/** First tap arms and previews. A second tap on the same button applies. */
 	arm(action: HunkAction, side: 'left' | 'right'): 'applied' | 'armed' | 'none' {
 		const chunk = this.chunkAt(side);
-		if (!chunk || !this.allows(action, chunk)) return 'none';
-		const affectsLeft = action.endsWith('left');
-		if (affectsLeft && this.readOnly.left) {
-			new Notice('The top file is read-only.');
-			return 'none';
-		}
-		if (!affectsLeft && this.readOnly.right) {
-			new Notice('The bottom file is read-only.');
-			return 'none';
-		}
+		if (!chunk || !hunkWriteAllowed(action, chunk)) return 'none';
+		if (this.rejectReadOnly(action)) return 'none';
 		if (this.armed && this.armed.action === action && this.armed.side === side && sameChunk(this.armed.chunk, chunk)) {
 			this.disarm(false);
 			this.run(action, chunk);
@@ -193,27 +163,17 @@ export class StackedHost {
 	}
 
 	runAtCursor(action: HunkAction): void {
-		if (!this.left || !this.right) {
-			new Notice('Open two text files to edit changes.');
-			return;
-		}
-		const focused = this.right.view.hasFocus ? this.right.view : this.left.view;
-		const side = focused === this.right.view ? 'b' : 'a';
-		const chunk = chunkAtCursor(this.chunkList, side, focused);
-		if (!chunk) {
-			new Notice('No change at the cursor.');
-			return;
-		}
-		this.run(action, chunk);
+		editAtCursor(
+			this.left?.view ?? null,
+			this.right?.view ?? null,
+			this.chunkList,
+			action,
+			(next, chunk) => this.run(next, chunk),
+		);
 	}
 
 	copyAll(direction: 'to-left' | 'to-right'): void {
-		if (!this.left || !this.right) {
-			new Notice('Open two text files to copy changes.');
-			return;
-		}
-		const action: HunkAction = direction === 'to-left' ? 'replace-left' : 'replace-right';
-		for (const chunk of [...this.chunkList].reverse()) this.run(action, chunk);
+		copyAllChunks(this.left && this.right ? this.chunkList : null, direction, (next, chunk) => this.run(next, chunk));
 	}
 
 	destroy(): void {
@@ -221,9 +181,14 @@ export class StackedHost {
 	}
 
 	private canReuse(left: SurfacePane, right: SurfacePane, options: SurfaceOptions): boolean {
-		if (left.placeholder || right.placeholder || !this.left || !this.right || !this.kinds) return false;
-		if (options.scanLimit !== this.options.scanLimit) return false;
-		return this.kinds.left === isMarkdownPath(left.path) && this.kinds.right === isMarkdownPath(right.path);
+		return surfaceCanReuse(
+			!!(this.left && this.right),
+			this.kinds,
+			left,
+			right,
+			options.scanLimit,
+			this.options.scanLimit,
+		);
 	}
 
 	private mount(left: SurfacePane, right: SurfacePane, options: SurfaceOptions): void {
@@ -240,9 +205,7 @@ export class StackedHost {
 	private mountPane(host: HTMLElement, side: 'left' | 'right', pane: SurfacePane): StackedPane | null {
 		host.empty();
 		if (pane.placeholder) {
-			const box = host.createDiv({ cls: 'meld-pane-placeholder' });
-			box.createDiv({ cls: 'meld-placeholder-title', text: pane.placeholder });
-			if (pane.detail) box.createDiv({ cls: 'meld-placeholder-detail', text: pane.detail });
+			fillPlaceholder(host, pane.placeholder, pane.detail);
 			return null;
 		}
 		const slots = createCompartments();
@@ -277,6 +240,7 @@ export class StackedHost {
 			tabSize: this.options.tabSize,
 			useTab: this.options.useTab,
 			compartments: slots,
+			lineHunks: false,
 			extra: [
 				mobileSide.of(side === 'left' ? 'a' : 'b'),
 				chunks.of(mobileChunks.of([])),
@@ -313,19 +277,14 @@ export class StackedHost {
 	}
 
 	private replaceSide(live: StackedPane, pane: SurfacePane): void {
-		const effects = editorChromeEffects(live.slots, pane.readOnly, pane.emptyHint);
-		const current = live.view.state.doc.toString();
-		if (current === pane.text) {
-			live.view.dispatch({ effects });
-			return;
-		}
-		this.suppress = true;
-		live.view.dispatch({
-			changes: { from: 0, to: live.view.state.doc.length, insert: pane.text },
-			effects,
-			userEvent: 'meld.load',
+		replacePaneDocument(live.view, live.slots, pane, (dispatch) => {
+			this.suppress = true;
+			try {
+				dispatch();
+			} finally {
+				this.suppress = false;
+			}
 		});
-		this.suppress = false;
 	}
 
 	private scheduleChunks(): void {
@@ -385,10 +344,13 @@ export class StackedHost {
 		if (notify) this.handlers.onSelect?.();
 	}
 
-	private allows(action: HunkAction, chunk: RangeChunk): boolean {
-		if (action.startsWith('insert-')) return hunkHasBothSides(chunk);
-		if (action === 'delete-left') return chunk.fromA !== chunk.toA;
-		if (action === 'delete-right') return chunk.fromB !== chunk.toB;
+	private rejectReadOnly(action: HunkAction): boolean {
+		const notice = readOnlyNotice(action, this.readOnly, {
+			left: 'The top file is read-only.',
+			right: 'The bottom file is read-only.',
+		});
+		if (!notice) return false;
+		new Notice(notice);
 		return true;
 	}
 
@@ -462,15 +424,7 @@ export class StackedHost {
 			new Notice('Open two text files to edit changes.');
 			return;
 		}
-		const affectsLeft = action.endsWith('left');
-		if (affectsLeft && this.readOnly.left) {
-			new Notice('The top file is read-only.');
-			return;
-		}
-		if (!affectsLeft && this.readOnly.right) {
-			new Notice('The bottom file is read-only.');
-			return;
-		}
+		if (this.rejectReadOnly(action)) return;
 		applyHunkAction(action, this.left.view, this.right.view, chunk);
 	}
 

@@ -10,6 +10,7 @@ await esbuild.build({
 		'tests/original-side.test.ts',
 		'tests/blank-side.test.ts',
 		'tests/file-bar-label.test.ts',
+		'tests/surface-shared.test.ts',
 	],
 	bundle: true,
 	platform: 'node',

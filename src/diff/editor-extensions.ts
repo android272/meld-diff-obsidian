@@ -60,6 +60,35 @@ export function activeLineExtensions(showCurrent: boolean, showNumbers: boolean)
 	return showNumbers ? [highlightActiveLine(), highlightActiveLineGutter()] : highlightActiveLine();
 }
 
+/** Editor chrome both layouts reconfigure. Highlight and collapse stay with the host that owns them. */
+export function paneChromeEffects(
+	slots: PaneCompartments,
+	options: {
+		wrap: boolean;
+		showLineNumbers: boolean;
+		showWhitespace: boolean;
+		showCurrentLine: boolean;
+		dark: boolean;
+	},
+	partial: {
+		wrap?: boolean;
+		showLineNumbers?: boolean;
+		showWhitespace?: boolean;
+		showCurrentLine?: boolean;
+		dark?: boolean;
+	},
+) {
+	const effects: Array<ReturnType<Compartment['reconfigure']>> = [];
+	if (partial.wrap !== undefined) effects.push(slots.wrap.reconfigure(options.wrap ? EditorView.lineWrapping : []));
+	if (partial.showLineNumbers !== undefined) effects.push(slots.lineNumbers.reconfigure(lineNumberExtensions(options.showLineNumbers)));
+	if (partial.showWhitespace !== undefined) effects.push(slots.whitespace.reconfigure(whitespaceExtensions(options.showWhitespace)));
+	if (partial.showCurrentLine !== undefined || partial.showLineNumbers !== undefined) {
+		effects.push(slots.activeLine.reconfigure(activeLineExtensions(options.showCurrentLine, options.showLineNumbers)));
+	}
+	if (partial.dark !== undefined) effects.push(slots.dark.reconfigure(EditorView.darkTheme.of(options.dark)));
+	return effects;
+}
+
 export function paneExtensions(options: {
 	path: string | null;
 	wrap: boolean;
@@ -74,6 +103,11 @@ export function paneExtensions(options: {
 	keys: PaneKeymap;
 	compartments: PaneCompartments;
 	extra?: Extension[];
+	/**
+	 * Line classes from the merge chunk field. Stacked editors are not a MergeView,
+	 * so the plugin would rebuild empty decorations on every edit.
+	 */
+	lineHunks?: boolean;
 }): Extension[] {
 	const { compartments: slots, keys } = options;
 	const extensions = [
@@ -127,8 +161,8 @@ export function paneExtensions(options: {
 				return keys.onContextMenu(event, view);
 			},
 		}),
-		chunkDecorationExtensions(),
 	];
+	if (options.lineHunks !== false) extensions.push(chunkDecorationExtensions());
 	if (isMarkdownPath(options.path)) {
 		extensions.push(markdown({ addKeymap: false, completeHTMLTags: false, pasteURLAsLink: false }));
 	}

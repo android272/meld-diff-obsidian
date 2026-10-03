@@ -1,6 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import { Notice } from 'obsidian';
-import { deleteEdit, hunkHasBothSides, hunkText, replaceEdit, type RangeChunk, type TextEdit } from './hunk-text';
+import { copyAllSteps, deleteEdit, hunkHasBothSides, hunkText, replaceEdit, type RangeChunk, type TextEdit } from './hunk-text';
 
 export type HunkAction =
 	| 'replace-left'
@@ -69,6 +69,41 @@ export function applyHunkAction(action: HunkAction, left: EditorView, right: Edi
 		console.error('Meld Diff: hunk action failed', error);
 		new Notice('Meld Diff could not apply that change.');
 	}
+}
+
+/** Shared by the side-by-side and stacked editors. Notices stay the same in both layouts. */
+export function editAtCursor(
+	left: EditorView | null,
+	right: EditorView | null,
+	chunks: readonly RangeChunk[],
+	action: HunkAction,
+	apply: (action: HunkAction, chunk: RangeChunk) => void,
+): void {
+	if (!left || !right) {
+		new Notice('Open two text files to edit changes.');
+		return;
+	}
+	const focused = right.hasFocus ? right : left;
+	const side = focused === right ? 'b' : 'a';
+	const chunk = chunkAtCursor(chunks, side, focused);
+	if (!chunk) {
+		new Notice('No change at the cursor.');
+		return;
+	}
+	apply(action, chunk);
+}
+
+/** `chunks` is null when the pair is not open. An empty list copies nothing and does not warn. */
+export function copyAllChunks(
+	chunks: readonly RangeChunk[] | null,
+	direction: 'to-left' | 'to-right',
+	apply: (action: HunkAction, chunk: RangeChunk) => void,
+): void {
+	if (!chunks) {
+		new Notice('Open two text files to copy changes.');
+		return;
+	}
+	for (const step of copyAllSteps(chunks, direction)) apply(step.action, step.chunk);
 }
 
 export function chunkAtCursor(chunks: readonly RangeChunk[], side: 'a' | 'b', view: EditorView): RangeChunk | null {

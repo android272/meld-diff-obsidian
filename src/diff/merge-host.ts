@@ -2,11 +2,11 @@ import { goToNextChunk, goToPreviousChunk, MergeView } from '@codemirror/merge';
 import { EditorView } from '@codemirror/view';
 import { Menu, Notice } from 'obsidian';
 import { isMarkdownPath } from '../text-util';
-import { activeLineExtensions, createCompartments, editorChromeEffects, lineNumberExtensions, paneExtensions, type PaneCompartments } from './editor-extensions';
-import { whitespaceExtensions } from './whitespace';
-import { HUNK_ACTION_LABELS, applyHunkAction, chunkAtCursor, type HunkAction } from './hunk-actions';
+import { createCompartments, paneChromeEffects, paneExtensions, type PaneCompartments } from './editor-extensions';
+import { HUNK_ACTION_LABELS, applyHunkAction, chunkAtCursor, copyAllChunks, editAtCursor, type HunkAction } from './hunk-actions';
 import { LinkMap } from './link-map';
-import { hunkHasBothSides, type RangeChunk } from './hunk-text';
+import { hunkWriteAllowed, readOnlyNotice, type RangeChunk } from './hunk-text';
+import { defaultSurfaceOptions, fillPlaceholder, replacePaneDocument, surfaceCanReuse } from './surface-shared';
 
 export interface SurfacePane {
 	text: string;
@@ -63,20 +63,7 @@ export class DiffSurface {
 		private readonly handlers: SurfaceHandlers,
 	) {
 		this.root = parent.createDiv({ cls: 'meld-surface is-aligned' });
-		this.options = {
-			wrap: true,
-			showCurrentLine: true,
-			showLineNumbers: true,
-			showWhitespace: false,
-			highlight: true,
-			collapse: false,
-			collapseMargin: 3,
-			scanLimit: 10000,
-			dark: false,
-			tabSize: 4,
-			useTab: true,
-			aligned: true,
-		};
+		this.options = defaultSurfaceOptions();
 	}
 
 	/** Show a pair. Reuses the open editors when it can, and writes the new text into them. */
@@ -126,25 +113,18 @@ export class DiffSurface {
 	}
 
 	private canReuse(left: SurfacePane, right: SurfacePane, options: SurfaceOptions): boolean {
-		if (!this.merge || !this.left || !this.right || !this.kinds) return false;
-		if (left.placeholder || right.placeholder) return false;
-		if (options.scanLimit !== this.options.scanLimit) return false;
-		return this.kinds.left === isMarkdownPath(left.path) && this.kinds.right === isMarkdownPath(right.path);
+		return surfaceCanReuse(
+			!!(this.merge && this.left && this.right),
+			this.kinds,
+			left,
+			right,
+			options.scanLimit,
+			this.options.scanLimit,
+		);
 	}
 
 	private replaceSide(live: LiveEditor, pane: SurfacePane): void {
-		const view = live.view;
-		const effects = editorChromeEffects(live.slots, pane.readOnly, pane.emptyHint);
-		const current = view.state.doc.toString();
-		if (current === pane.text) {
-			view.dispatch({ effects });
-			return;
-		}
-		view.dispatch({
-			changes: { from: 0, to: view.state.doc.length, insert: pane.text },
-			effects,
-			userEvent: 'meld.load',
-		});
+		replacePaneDocument(live.view, live.slots, pane);
 	}
 
 	reconfigure(partial: Partial<SurfaceOptions>): void {
@@ -153,18 +133,9 @@ export class DiffSurface {
 			this.aligned = partial.aligned;
 			this.root.toggleClass('is-aligned', this.aligned);
 		}
-		const wrapExt = (on: boolean) => (on ? EditorView.lineWrapping : []);
-		const darkExt = (on: boolean) => EditorView.darkTheme.of(on);
 		for (const live of [this.left, this.right]) {
 			if (!live) continue;
-			const effects = [];
-			if (partial.wrap !== undefined) effects.push(live.slots.wrap.reconfigure(wrapExt(this.options.wrap)));
-			if (partial.showLineNumbers !== undefined) effects.push(live.slots.lineNumbers.reconfigure(lineNumberExtensions(this.options.showLineNumbers)));
-			if (partial.showWhitespace !== undefined) effects.push(live.slots.whitespace.reconfigure(whitespaceExtensions(this.options.showWhitespace)));
-			if (partial.showCurrentLine !== undefined || partial.showLineNumbers !== undefined) {
-				effects.push(live.slots.activeLine.reconfigure(activeLineExtensions(this.options.showCurrentLine, this.options.showLineNumbers)));
-			}
-			if (partial.dark !== undefined) effects.push(live.slots.dark.reconfigure(darkExt(this.options.dark)));
+			const effects = paneChromeEffects(live.slots, this.options, partial);
 			if (effects.length) live.view.dispatch({ effects });
 		}
 		if (this.merge && (partial.highlight !== undefined || partial.collapse !== undefined || partial.collapseMargin !== undefined)) {
@@ -195,28 +166,18 @@ export class DiffSurface {
 	}
 
 	runAtCursor(action: HunkAction): void {
-		if (!this.merge || !this.left || !this.right) {
-			new Notice('Open two text files to edit changes.');
-			return;
-		}
-		const focused = this.right.view.hasFocus ? this.right.view : this.left.view;
-		const side = focused === this.right.view ? 'b' : 'a';
-		const chunk = chunkAtCursor(this.merge.chunks, side, focused);
-		if (!chunk) {
-			new Notice('No change at the cursor.');
-			return;
-		}
-		this.run(action, chunk);
+		const ready = this.merge && this.left && this.right ? this.merge : null;
+		editAtCursor(
+			ready && this.left ? this.left.view : null,
+			ready && this.right ? this.right.view : null,
+			ready ? ready.chunks : [],
+			action,
+			(next, chunk) => this.run(next, chunk),
+		);
 	}
 
 	copyAll(direction: 'to-left' | 'to-right'): void {
-		if (!this.merge) {
-			new Notice('Open two text files to copy changes.');
-			return;
-		}
-		const chunks = [...this.merge.chunks].reverse();
-		const action: HunkAction = direction === 'to-left' ? 'replace-left' : 'replace-right';
-		for (const chunk of chunks) this.run(action, chunk);
+		copyAllChunks(this.merge ? this.merge.chunks : null, direction, (action, chunk) => this.run(action, chunk));
 	}
 
 	destroy(): void {
@@ -271,9 +232,7 @@ export class DiffSurface {
 	private mountPane(row: HTMLElement, side: 'left' | 'right', pane: SurfacePane): LiveEditor | null {
 		const host = row.createDiv({ cls: 'meld-pane' });
 		if (pane.placeholder) {
-			const box = host.createDiv({ cls: 'meld-pane-placeholder' });
-			box.createDiv({ cls: 'meld-placeholder-title', text: pane.placeholder });
-			if (pane.detail) box.createDiv({ cls: 'meld-placeholder-detail', text: pane.detail });
+			fillPlaceholder(host, pane.placeholder, pane.detail);
 			return null;
 		}
 		const slots = createCompartments();
@@ -380,13 +339,12 @@ export class DiffSurface {
 			new Notice('Open two text files to edit changes.');
 			return;
 		}
-		const affectsLeft = action.endsWith('left');
-		if (affectsLeft && this.readOnly.left) {
-			new Notice('File A is read-only.');
-			return;
-		}
-		if (!affectsLeft && this.readOnly.right) {
-			new Notice('File B is read-only.');
+		const notice = readOnlyNotice(action, this.readOnly, {
+			left: 'File A is read-only.',
+			right: 'File B is read-only.',
+		});
+		if (notice) {
+			new Notice(notice);
 			return;
 		}
 		applyHunkAction(action, this.merge.a, this.merge.b, chunk);
@@ -405,7 +363,7 @@ export class DiffSurface {
 	private showHunkMenu(chunk: RangeChunk, event: MouseEvent): void {
 		const menu = new Menu();
 		for (const action of Object.keys(HUNK_ACTION_LABELS) as HunkAction[]) {
-			if (action.startsWith('insert-') && !hunkHasBothSides(chunk)) continue;
+			if (action.startsWith('insert-') && !hunkWriteAllowed(action, chunk)) continue;
 			const label = HUNK_ACTION_LABELS[action];
 			menu.addItem((item) => item.setTitle(label).onClick(() => this.run(action, chunk)));
 		}

@@ -26,6 +26,41 @@ export function hunkHasBothSides(chunk: RangeChunk): boolean {
 	return chunk.fromA !== chunk.toA && chunk.fromB !== chunk.toB;
 }
 
+/**
+ * Whether a hunk button or command is allowed to write.
+ * Replace is always allowed. Insert needs text on both sides. Delete needs text on the side it clears.
+ */
+export function hunkWriteAllowed(action: string, chunk: RangeChunk): boolean {
+	if (action.startsWith('insert-')) return hunkHasBothSides(chunk);
+	if (action === 'delete-left') return chunk.fromA !== chunk.toA;
+	if (action === 'delete-right') return chunk.fromB !== chunk.toB;
+	return true;
+}
+
+/** Which read-only notice applies, if the action writes a locked side. The wording stays with the caller. */
+export function readOnlyNotice(
+	action: string,
+	readOnly: { left: boolean; right: boolean },
+	messages: { left: string; right: string },
+): string | null {
+	if (action.endsWith('left')) return readOnly.left ? messages.left : null;
+	return readOnly.right ? messages.right : null;
+}
+
+/** Copy-all walks changes from the end so earlier offsets stay valid. */
+export function copyAllSteps<T extends RangeChunk>(
+	chunks: readonly T[],
+	direction: 'to-left' | 'to-right',
+): Array<{ action: 'replace-left' | 'replace-right'; chunk: T }> {
+	const action = direction === 'to-left' ? 'replace-left' : 'replace-right';
+	const steps: Array<{ action: 'replace-left' | 'replace-right'; chunk: T }> = [];
+	for (let index = chunks.length - 1; index >= 0; index--) {
+		const chunk = chunks[index];
+		if (chunk) steps.push({ action, chunk });
+	}
+	return steps;
+}
+
 export const INSERT_AROUND_REASON = 'Nothing on the other side to insert around';
 
 /**

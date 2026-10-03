@@ -1,4 +1,4 @@
-import { INSERT_AROUND_REASON, hunkHasBothSides, type RangeChunk } from './hunk-text';
+import { INSERT_AROUND_REASON, hunkWriteAllowed, type RangeChunk } from './hunk-text';
 
 export interface SummaryChange {
 	fromA: number;
@@ -89,9 +89,13 @@ function visibleLength(text: string): number {
 
 export function barActions(chunk: RangeChunk | null, side: 'a' | 'b'): BarActions {
 	if (!chunk) return { replace: false, above: false, below: false, delete: false };
-	const empty = side === 'a' ? chunk.fromA === chunk.toA : chunk.fromB === chunk.toB;
-	const around = hunkHasBothSides(chunk);
-	return { replace: true, above: around, below: around, delete: !empty };
+	const write = side === 'a' ? 'left' : 'right';
+	return {
+		replace: hunkWriteAllowed(`replace-${write}`, chunk),
+		above: hunkWriteAllowed(`insert-above-${write}`, chunk),
+		below: hunkWriteAllowed(`insert-below-${write}`, chunk),
+		delete: hunkWriteAllowed(`delete-${write}`, chunk),
+	};
 }
 
 export function actionTip(key: keyof BarActions, actions: BarActions, label: string): string {
