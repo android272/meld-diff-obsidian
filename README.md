@@ -1,6 +1,6 @@
 # Meld Diff
 
-![icon.png](icon.png)
+![icon.png](./icon.png)
 
 A two-pane diff inside Obsidian, the way Meld works on the desktop. Compare any two notes, or paste text that is not a note yet. It also finds sync-conflict files and pairs them with the original.
 
