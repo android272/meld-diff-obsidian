@@ -1,6 +1,7 @@
 {
 	"name": "meld-diff",
 	"version": "0.1.1",
+	"tag-version-prefix": "",
 	"description": "Meld-style split diff and merge, plus configurable sync-conflict discovery.",
 	"main": "main.js",
 	"type": "module",
