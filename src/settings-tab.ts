@@ -206,10 +206,10 @@ export class MeldDiffSettingTab extends PluginSettingTab {
 		pickerRows.push(this.colorPicker(container, 'Changed (both sides)', 'Both sides, and the wave between them.', 'hunkChange', 'change'));
 		pickerRows.push(this.colorPicker(container, 'Changed characters', 'Characters that differ inside a change. Ignored when highlighting inside a line is off.', 'hunkToken', 'token'));
 		showPickers(settings.colorSource === 'custom');
-		this.opacitySlider(container, 'Block opacity', 'Wash behind a whole hunk and its wave.', settings.hunkOpacity, BLOCK_OPACITY_MIN, BLOCK_OPACITY_MAX, (value) => {
+		this.opacitySlider(container, 'Block opacity (%)', 'Wash behind a whole hunk and its wave.', settings.hunkOpacity, BLOCK_OPACITY_MIN, BLOCK_OPACITY_MAX, (value) => {
 			settings.hunkOpacity = value;
 		});
-		this.opacitySlider(container, 'Character opacity', 'Wash on characters that differ. Ignored when highlighting inside a line is off.', settings.tokenOpacity, TOKEN_OPACITY_MIN, TOKEN_OPACITY_MAX, (value) => {
+		this.opacitySlider(container, 'Character opacity (%)', 'Wash on characters that differ. Ignored when highlighting inside a line is off.', settings.tokenOpacity, TOKEN_OPACITY_MIN, TOKEN_OPACITY_MAX, (value) => {
 			settings.tokenOpacity = value;
 		});
 		new Setting(container)
@@ -269,12 +269,11 @@ export class MeldDiffSettingTab extends PluginSettingTab {
 			.setName(name)
 			.setDesc(desc)
 			.addSlider((slider) => slider
-				.setLimits(min, max, 0.01)
-				.setValue(value)
+				.setLimits(Math.round(min * 100), Math.round(max * 100), 1)
+				.setValue(Math.round(value * 100))
 				.setInstant(true)
-				.setDisplayFormat((next) => `${Math.round(next * 100)}%`)
 				.onChange((next) => {
-					apply(Math.round(next * 100) / 100);
+					apply(Math.round(next) / 100);
 					void this.plugin.saveSettings(false, true);
 				}));
 	}
