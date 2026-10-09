@@ -1,7 +1,7 @@
 {
 	"id": "meld-diff",
 	"name": "Meld Diff",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"minAppVersion": "1.13.0",
 	"description": "Meld-style split diff and merge, plus configurable sync-conflict discovery.",
 	"author": "Andrew Pullins",
