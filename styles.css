@@ -385,6 +385,10 @@ body {
 	background: var(--background-secondary);
 }
 
+.meld-link-column.is-fit {
+	height: var(--meld-link-height);
+}
+
 .meld-link-svg {
 	position: absolute;
 	top: 0;
@@ -650,6 +654,10 @@ body {
 	flex-direction: column;
 	gap: 8px;
 	background: var(--background-primary);
+}
+
+.meld-prompt-input {
+	width: 100%;
 }
 
 .meld-input,

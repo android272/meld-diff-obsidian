@@ -240,11 +240,10 @@ export class LinkMap {
 	private fitColumn(): void {
 		const surface = this.host.closest('.meld-surface');
 		const scroller = this.host.closest('.cm-mergeView') as HTMLElement | null;
-		if (surface?.classList.contains('is-aligned') && scroller && scroller.clientHeight > 0) {
-			this.host.style.height = `${scroller.clientHeight}px`;
-			return;
-		}
-		this.host.style.height = '';
+		const fit = Boolean(surface?.classList.contains('is-aligned') && scroller && scroller.clientHeight > 0);
+		this.host.toggleClass('is-fit', fit);
+		if (!fit || !scroller) return;
+		this.host.setCssProps({ '--meld-link-height': `${scroller.clientHeight}px` });
 	}
 
 	private renderButtons(anchors: readonly { top: number; bottom: number }[] = []): void {

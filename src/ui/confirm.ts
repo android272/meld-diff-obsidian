@@ -73,8 +73,7 @@ export function askString(app: App, title: string, initial: string, label: strin
 		const modal = new Modal(app);
 		modal.titleEl.setText(title);
 		modal.contentEl.createEl('label', { text: label });
-		const input = modal.contentEl.createEl('input', { type: 'text', value: initial });
-		input.style.width = '100%';
+		const input = modal.contentEl.createEl('input', { type: 'text', value: initial, cls: 'meld-prompt-input' });
 		const row = modal.contentEl.createDiv({ cls: 'modal-button-container' });
 		const cancel = row.createEl('button', { text: 'Cancel' });
 		const ok = row.createEl('button', { text: confirmLabel, cls: 'mod-cta' });
