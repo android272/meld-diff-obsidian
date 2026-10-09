@@ -33,7 +33,7 @@ export function registerCommands(plugin: MeldDiffPlugin): void {
 
 	plugin.addCommand({
 		id: 'diff-current-with-other',
-		name: 'Meld Diff: Compare current file with…',
+		name: 'Compare current file with…',
 		checkCallback: (checking) => {
 			const file = plugin.app.workspace.getActiveFile();
 			if (!(file instanceof TFile)) return false;
@@ -48,7 +48,7 @@ export function registerCommands(plugin: MeldDiffPlugin): void {
 	});
 	plugin.addCommand({
 		id: 'diff-current-with-conflict',
-		name: 'Meld Diff: Compare current file with its conflict',
+		name: 'Compare current file with its conflict',
 		checkCallback: (checking) => {
 			const file = plugin.app.workspace.getActiveFile();
 			if (!(file instanceof TFile)) return false;
@@ -60,27 +60,27 @@ export function registerCommands(plugin: MeldDiffPlugin): void {
 	});
 	plugin.addCommand({
 		id: 'diff-two-files',
-		name: 'Meld Diff: Compare two files…',
+		name: 'Compare two files…',
 		callback: () => { void plugin.compareTwoFiles(); },
 	});
 	plugin.addCommand({
 		id: 'diff-current-as-left',
-		name: 'Meld Diff: Set current file as A',
+		name: 'Set current file as A',
 		checkCallback: (checking) => withActiveFile(plugin, checking, (file) => plugin.setSide('left', file.path)),
 	});
 	plugin.addCommand({
 		id: 'diff-current-as-right',
-		name: 'Meld Diff: Set current file as B',
+		name: 'Set current file as B',
 		checkCallback: (checking) => withActiveFile(plugin, checking, (file) => plugin.setSide('right', file.path)),
 	});
 	plugin.addCommand({
 		id: 'scan-conflicts',
-		name: 'Meld Diff: Rescan vault for conflicts',
+		name: 'Rescan vault for conflicts',
 		callback: () => plugin.rescan(),
 	});
 	plugin.addCommand({
 		id: 'open-next-conflict-diff',
-		name: 'Meld Diff: Open next unresolved conflict',
+		name: 'Open next unresolved conflict',
 		callback: () => { void plugin.openNextConflict(); },
 	});
 
@@ -97,22 +97,22 @@ export function registerCommands(plugin: MeldDiffPlugin): void {
 			},
 		});
 	};
-	diffCommand('next-hunk', 'Meld Diff: Next change', (view) => view.nextHunk());
-	diffCommand('prev-hunk', 'Meld Diff: Previous change', (view) => view.prevHunk());
-	diffCommand('swap-sides', 'Meld Diff: Swap A and B', (view) => view.swap());
-	diffCommand('save-left', 'Meld Diff: Save file A', (view) => { void view.saveLeft(); }, (view) => view.canSaveSide('left'));
-	diffCommand('save-right', 'Meld Diff: Save file B', (view) => { void view.saveRight(); }, (view) => view.canSaveSide('right'));
-	diffCommand('save-both', 'Meld Diff: Save both files', (view) => { void view.saveBoth(); }, (view) => view.canSaveSide('left') || view.canSaveSide('right'));
-	diffCommand('pick-left-file', 'Meld Diff: Choose file A', (view) => { void view.pickLeft(); });
-	diffCommand('pick-right-file', 'Meld Diff: Choose file B', (view) => { void view.pickRight(); });
-	diffCommand('copy-hunk-to-left', 'Meld Diff: Replace A with B', (view) => view.runHunk('replace-left'));
-	diffCommand('copy-hunk-to-right', 'Meld Diff: Replace B with A', (view) => view.runHunk('replace-right'));
-	diffCommand('insert-hunk-above-left', 'Meld Diff: Insert B above A', (view) => view.runHunk('insert-above-left'));
-	diffCommand('insert-hunk-below-left', 'Meld Diff: Insert B below A', (view) => view.runHunk('insert-below-left'));
-	diffCommand('insert-hunk-above-right', 'Meld Diff: Insert A above B', (view) => view.runHunk('insert-above-right'));
-	diffCommand('insert-hunk-below-right', 'Meld Diff: Insert A below B', (view) => view.runHunk('insert-below-right'));
-	diffCommand('delete-hunk-left', 'Meld Diff: Delete hunk on A', (view) => view.runHunk('delete-left'));
-	diffCommand('delete-hunk-right', 'Meld Diff: Delete hunk on B', (view) => view.runHunk('delete-right'));
+	diffCommand('next-hunk', 'Next change', (view) => view.nextHunk());
+	diffCommand('prev-hunk', 'Previous change', (view) => view.prevHunk());
+	diffCommand('swap-sides', 'Swap A and B', (view) => view.swap());
+	diffCommand('save-left', 'Save file A', (view) => { void view.saveLeft(); }, (view) => view.canSaveSide('left'));
+	diffCommand('save-right', 'Save file B', (view) => { void view.saveRight(); }, (view) => view.canSaveSide('right'));
+	diffCommand('save-both', 'Save both files', (view) => { void view.saveBoth(); }, (view) => view.canSaveSide('left') || view.canSaveSide('right'));
+	diffCommand('pick-left-file', 'Choose file A', (view) => { void view.pickLeft(); });
+	diffCommand('pick-right-file', 'Choose file B', (view) => { void view.pickRight(); });
+	diffCommand('copy-hunk-to-left', 'Replace A with B', (view) => view.runHunk('replace-left'));
+	diffCommand('copy-hunk-to-right', 'Replace B with A', (view) => view.runHunk('replace-right'));
+	diffCommand('insert-hunk-above-left', 'Insert B above A', (view) => view.runHunk('insert-above-left'));
+	diffCommand('insert-hunk-below-left', 'Insert B below A', (view) => view.runHunk('insert-below-left'));
+	diffCommand('insert-hunk-above-right', 'Insert A above B', (view) => view.runHunk('insert-above-right'));
+	diffCommand('insert-hunk-below-right', 'Insert A below B', (view) => view.runHunk('insert-below-right'));
+	diffCommand('delete-hunk-left', 'Delete hunk on A', (view) => view.runHunk('delete-left'));
+	diffCommand('delete-hunk-right', 'Delete hunk on B', (view) => view.runHunk('delete-right'));
 }
 
 function withActiveFile(plugin: MeldDiffPlugin, checking: boolean, run: (file: TFile) => void): boolean {
@@ -134,11 +134,11 @@ function conflictId(placement: Placement): string {
 
 function conflictName(placement: Placement): string {
 	switch (placement) {
-		case 'reveal': return 'Meld Diff: Open conflict view';
-		case 'tab': return 'Meld Diff: Open conflict view in new tab';
-		case 'left': return 'Meld Diff: Open conflict view in left sidebar';
-		case 'right': return 'Meld Diff: Open conflict view in right sidebar';
-		case 'toggle': return 'Meld Diff: Toggle conflict view';
+		case 'reveal': return 'Open conflict view';
+		case 'tab': return 'Open conflict view in new tab';
+		case 'left': return 'Open conflict view in left sidebar';
+		case 'right': return 'Open conflict view in right sidebar';
+		case 'toggle': return 'Toggle conflict view';
 	}
 }
 
@@ -154,11 +154,11 @@ function diffId(placement: Placement): string {
 
 function diffName(placement: Placement): string {
 	switch (placement) {
-		case 'reveal': return 'Meld Diff: Open diff view';
-		case 'tab': return 'Meld Diff: New diff';
-		case 'left': return 'Meld Diff: Open diff view in left sidebar';
-		case 'right': return 'Meld Diff: Open diff view in right sidebar';
-		case 'toggle': return 'Meld Diff: Toggle diff view';
+		case 'reveal': return 'Open diff view';
+		case 'tab': return 'New diff';
+		case 'left': return 'Open diff view in left sidebar';
+		case 'right': return 'Open diff view in right sidebar';
+		case 'toggle': return 'Toggle diff view';
 	}
 }
 

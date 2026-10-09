@@ -656,39 +656,39 @@ Do not add: per-theme (light vs dark) pickers, hue-rotate-from-accent, or a “o
 
 Register every command with `this.addCommand`. Do not pass a `hotkeys` property. Omitting it leaves the command unbound, and the user can bind it under Settings → Hotkeys. Filter commands with `checkCallback` so hunk actions only enable when a Diff View is active.
 
-Command names must start with `Meld Diff:` so they group in the Hotkeys pane.
+Do not put the plugin name in a command name. Obsidian already shows Meld Diff next to each command in the command palette and the Hotkeys pane.
 
 ### 8.1 Open / place views
 
 | Id | Name | Action |
 |---|---|---|
-| `open-conflict-view` | Meld Diff: Open conflict view | Reveal existing Conflict View, else open as a main tab |
-| `open-conflict-view-new-tab` | Meld Diff: Open conflict view in new tab | Always a new main tab |
-| `open-conflict-view-left` | Meld Diff: Open conflict view in left sidebar | `getLeftLeaf(false)` |
-| `open-conflict-view-right` | Meld Diff: Open conflict view in right sidebar | `getRightLeaf(false)` |
-| `toggle-conflict-view` | Meld Diff: Toggle conflict view | If a Conflict leaf is active, detach it; otherwise reveal-or-open |
-| `open-diff-view` | Meld Diff: Open diff view | Reveal most recent Diff View, else open a blank unsaved comparison as a main tab |
-| `open-diff-view-new-tab` | Meld Diff: New diff | Always a new blank unsaved comparison. Does not load a file. |
-| `open-diff-view-left` | Meld Diff: Open diff view in left sidebar | |
-| `open-diff-view-right` | Meld Diff: Open diff view in right sidebar | |
-| `toggle-diff-view` | Meld Diff: Toggle diff view | Same toggle pattern as conflicts |
+| `open-conflict-view` | Open conflict view | Reveal existing Conflict View, else open as a main tab |
+| `open-conflict-view-new-tab` | Open conflict view in new tab | Always a new main tab |
+| `open-conflict-view-left` | Open conflict view in left sidebar | `getLeftLeaf(false)` |
+| `open-conflict-view-right` | Open conflict view in right sidebar | `getRightLeaf(false)` |
+| `toggle-conflict-view` | Toggle conflict view | If a Conflict leaf is active, detach it; otherwise reveal-or-open |
+| `open-diff-view` | Open diff view | Reveal most recent Diff View, else open a blank unsaved comparison as a main tab |
+| `open-diff-view-new-tab` | New diff | Always a new blank unsaved comparison. Does not load a file. |
+| `open-diff-view-left` | Open diff view in left sidebar | |
+| `open-diff-view-right` | Open diff view in right sidebar | |
+| `toggle-diff-view` | Toggle diff view | Same toggle pattern as conflicts |
 
 ### 8.2 Start a comparison
 
 | Id | Name | Action |
 |---|---|---|
-| `diff-current-with-other` | Meld Diff: Compare current file with… | Fuzzy-pick a second file; open/reuse Diff (current = left) |
-| `diff-current-with-conflict` | Meld Diff: Compare current file with its conflict | If several conflicts, pick one |
-| `diff-two-files` | Meld Diff: Compare two files… | Two pickers, then open Diff |
-| `diff-current-as-left` | Meld Diff: Set current file as diff left | Reuse active Diff View, or open one |
-| `diff-current-as-right` | Meld Diff: Set current file as diff right | Same for the right pane |
+| `diff-current-with-other` | Compare current file with… | Fuzzy-pick a second file; open/reuse Diff (current = left) |
+| `diff-current-with-conflict` | Compare current file with its conflict | If several conflicts, pick one |
+| `diff-two-files` | Compare two files… | Two pickers, then open Diff |
+| `diff-current-as-left` | Set current file as diff left | Reuse active Diff View, or open one |
+| `diff-current-as-right` | Set current file as diff right | Same for the right pane |
 
 ### 8.3 Conflict index
 
 | Id | Name | Action |
 |---|---|---|
-| `scan-conflicts` | Meld Diff: Rescan vault for conflicts | Rebuild index, refresh open Conflict Views |
-| `open-next-conflict-diff` | Meld Diff: Open next unresolved conflict | First group in the index that still has a conflict file |
+| `scan-conflicts` | Rescan vault for conflicts | Rebuild index, refresh open Conflict Views |
+| `open-next-conflict-diff` | Open next unresolved conflict | First group in the index that still has a conflict file |
 
 ### 8.4 Diff View — navigation and files
 
@@ -696,14 +696,14 @@ These require an active Diff View (`checkCallback`). The shortcuts in the table 
 
 | Id | Name | Suggested default | Action |
 |---|---|---|---|
-| `next-hunk` | Meld Diff: Next change | `Alt+ArrowDown` | Jump to next hunk |
-| `prev-hunk` | Meld Diff: Previous change | `Alt+ArrowUp` | Jump to previous hunk |
-| `swap-sides` | Meld Diff: Swap left and right | | |
-| `save-left` | Meld Diff: Save left file | | |
-| `save-right` | Meld Diff: Save right file | | |
-| `save-both` | Meld Diff: Save both files | `Mod+Shift+S` when view focused | |
-| `pick-left-file` | Meld Diff: Choose left file | | Opens the left file picker |
-| `pick-right-file` | Meld Diff: Choose right file | | Opens the right file picker |
+| `next-hunk` | Next change | `Alt+ArrowDown` | Jump to next hunk |
+| `prev-hunk` | Previous change | `Alt+ArrowUp` | Jump to previous hunk |
+| `swap-sides` | Swap left and right | | |
+| `save-left` | Save left file | | |
+| `save-right` | Save right file | | |
+| `save-both` | Save both files | `Mod+Shift+S` when view focused | |
+| `pick-left-file` | Choose left file | | Opens the left file picker |
+| `pick-right-file` | Choose right file | | Opens the right file picker |
 
 `Mod+S` inside the Diff View is handled as an editor command on the focused pane, not only as a plugin command.
 
@@ -713,14 +713,14 @@ Operate on the hunk containing the cursor in the focused editor. Same semantics 
 
 | Id | Name | Action |
 |---|---|---|
-| `copy-hunk-to-left` | Meld Diff: Replace left hunk with right | |
-| `copy-hunk-to-right` | Meld Diff: Replace right hunk with left | |
-| `insert-hunk-above-left` | Meld Diff: Insert right hunk above left | |
-| `insert-hunk-below-left` | Meld Diff: Insert right hunk below left | |
-| `insert-hunk-above-right` | Meld Diff: Insert left hunk above right | |
-| `insert-hunk-below-right` | Meld Diff: Insert left hunk below right | |
-| `delete-hunk-left` | Meld Diff: Delete left hunk | |
-| `delete-hunk-right` | Meld Diff: Delete right hunk | |
+| `copy-hunk-to-left` | Replace left hunk with right | |
+| `copy-hunk-to-right` | Replace right hunk with left | |
+| `insert-hunk-above-left` | Insert right hunk above left | |
+| `insert-hunk-below-left` | Insert right hunk below left | |
+| `insert-hunk-above-right` | Insert left hunk above right | |
+| `insert-hunk-below-right` | Insert left hunk below right | |
+| `delete-hunk-left` | Delete left hunk | |
+| `delete-hunk-right` | Delete right hunk | |
 
 No default hotkeys for hunk actions. Users who want Meld muscle memory can bind them.
 
