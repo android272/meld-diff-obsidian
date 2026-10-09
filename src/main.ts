@@ -167,8 +167,8 @@ export default class MeldDiffPlugin extends Plugin {
 	}
 
 	getActiveDiffView(): DiffView | null {
-		const active = this.app.workspace.activeLeaf;
-		if (active?.view instanceof DiffView) return active.view;
+		const active = this.app.workspace.getActiveViewOfType(DiffView);
+		if (active) return active;
 		for (const leaf of collectLeaves(this.app, DIFF_VIEW_TYPE)) {
 			if (!(leaf.view instanceof DiffView)) continue;
 			const doc = leaf.view.containerEl.ownerDocument;

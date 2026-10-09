@@ -1,4 +1,4 @@
-import { type App, type WorkspaceLeaf } from 'obsidian';
+import { View, type App, type WorkspaceLeaf } from 'obsidian';
 import { CONFLICT_VIEW_TYPE, DIFF_VIEW_TYPE } from './constants';
 
 export type Placement = 'reveal' | 'tab' | 'left' | 'right' | 'toggle';
@@ -82,9 +82,9 @@ export async function openMeldView(options: {
 	let placement = options.placement;
 	const state = options.state ?? {};
 	if (placement === 'toggle') {
-		const active = app.workspace.activeLeaf;
-		if (active && (active.view?.getViewType?.() === viewType || active.getViewState().type === viewType)) {
-			active.detach();
+		const active = app.workspace.getActiveViewOfType(View);
+		if (active && (active.getViewType() === viewType || active.leaf.getViewState().type === viewType)) {
+			active.leaf.detach();
 			return null;
 		}
 		placement = 'reveal';
