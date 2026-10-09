@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { explainPattern, globToRegExp, matchConflictPath, pathIgnored, compileIgnore, stripSyncConflict } from '../src/patterns';
-import { NEXTCLOUD_GLOB, obsidianSyncPreset, syncthingPreset } from '../src/settings';
+import { explainPattern, globToRegExp, isUnderConfigDir, matchConflictPath, pathIgnored, compileIgnore, stripSyncConflict } from '../src/patterns';
+import { DEFAULT_IGNORE_GLOBS, NEXTCLOUD_GLOB, obsidianSyncPreset, syncthingPreset } from '../src/settings';
 
 const syncthing = syncthingPreset();
 const obsidian = { ...obsidianSyncPreset(), enabled: true };
@@ -77,13 +77,21 @@ test('nextcloud glob recovers the original name', () => {
 	assert.equal(matchConflictPath('Notes/foo.md', [pattern]), null);
 });
 
-test('ignore globs skip obsidian and git internals', () => {
-	const regs = compileIgnore(['.obsidian/**', '.trash/**', '**/.git/**', '**/.stfolder/**', '**/.stversions/**']);
-	assert.equal(pathIgnored('.obsidian/plugins/meld-diff/main.js', regs), true);
+test('ignore globs skip trash and git internals', () => {
+	const regs = compileIgnore(DEFAULT_IGNORE_GLOBS);
+	assert.equal(pathIgnored('.trash/foo.md', regs), true);
 	assert.equal(pathIgnored('.git/config', regs), true);
 	assert.equal(pathIgnored('sub/.git/HEAD', regs), true);
 	assert.equal(pathIgnored('.stversions/foo.md', regs), true);
 	assert.equal(pathIgnored('Notes/foo.md', regs), false);
+});
+
+test('configuration folder matching is a path prefix', () => {
+	assert.equal(isUnderConfigDir('.vault-config/plugins/meld-diff/main.js', '.vault-config'), true);
+	assert.equal(isUnderConfigDir('.vault-config', '.vault-config'), true);
+	assert.equal(isUnderConfigDir('.vault-config-extra/main.js', '.vault-config'), false);
+	assert.equal(isUnderConfigDir('Notes/foo.md', '.vault-config'), false);
+	assert.equal(isUnderConfigDir('Notes/foo.md', ''), false);
 });
 
 test('strip sync marker keeps the extension', () => {

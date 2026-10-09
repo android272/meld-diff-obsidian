@@ -1,4 +1,4 @@
-import { compileIgnore, matchPrepared, pathIgnored, preparePatterns } from '../patterns';
+import { compileIgnore, isUnderConfigDir, matchPrepared, pathIgnored, preparePatterns } from '../patterns';
 import type { ConflictFile, ConflictGroup, ConflictPattern, VaultFileInfo } from '../types';
 
 function stampKey(file: ConflictFile): string {
@@ -9,15 +9,17 @@ export function buildConflictGroups(
 	files: readonly VaultFileInfo[],
 	patterns: readonly ConflictPattern[],
 	ignoreGlobs: readonly string[],
+	configDir?: string,
 ): ConflictGroup[] {
 	const ignores = compileIgnore(ignoreGlobs);
 	const { compiled } = preparePatterns(patterns);
 	const existing = new Set(files.map((file) => file.path));
-	const exists = (path: string) => existing.has(path) && !pathIgnored(path, ignores);
+	const skip = (path: string) => pathIgnored(path, ignores) || isUnderConfigDir(path, configDir);
+	const exists = (path: string) => existing.has(path) && !skip(path);
 	const groups = new Map<string, ConflictGroup>();
 
 	for (const file of files) {
-		if (pathIgnored(file.path, ignores)) continue;
+		if (skip(file.path)) continue;
 		const match = matchPrepared(file.path, compiled, exists);
 		if (!match) continue;
 		let originalPath = match.originalPath;

@@ -226,14 +226,13 @@ Settings UI for each pattern:
 Default ignore globs:
 
 ```
-.obsidian/**
 .trash/**
 **/.git/**
 **/.stfolder/**
 **/.stversions/**
 ```
 
-User-editable. Never treat files inside these paths as conflicts or originals for pairing.
+User-editable. Never treat files inside these paths as conflicts or originals for pairing. Also always skip the vault configuration folder from `Vault.configDir`. That folder is usually named `.obsidian`, and the user can rename it. Do not hardcode the name.
 
 ### 4.6 Indexer
 

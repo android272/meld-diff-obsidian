@@ -56,7 +56,7 @@ export class MeldDiffSettingTab extends PluginSettingTab {
 			},
 			{
 				name: 'Ignore globs',
-				desc: 'One glob per line. Files under these paths are never conflicts or originals. * and ** both work.',
+				desc: 'One glob per line. Files under these paths are never conflicts or originals. The configuration folder is always skipped. * and ** both work.',
 				control: { type: 'textarea', key: 'ignoreGlobs', rows: 6 },
 			},
 			{
@@ -303,7 +303,7 @@ export class MeldDiffSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Ignore globs')
-			.setDesc('One glob per line. Files under these paths are never conflicts or originals. * and ** both work.')
+			.setDesc('One glob per line. Files under these paths are never conflicts or originals. The configuration folder is always skipped. * and ** both work.')
 			.setClass('meld-ignore-globs')
 			.addTextArea((area) => {
 				area.inputEl.addClass('meld-ignore-globs-input');

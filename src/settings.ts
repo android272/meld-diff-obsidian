@@ -16,8 +16,8 @@ export const OBSIDIAN_SYNC_EXPRESSION = String.raw`^(?<dir>.*/)?(?<stem>[^/]+?)\
 
 export const NEXTCLOUD_GLOB = '**/* (conflicted copy *).*';
 
+// The live configuration folder is excluded at scan time via Vault.configDir.
 export const DEFAULT_IGNORE_GLOBS = [
-	'.obsidian/**',
 	'.trash/**',
 	'**/.git/**',
 	'**/.stfolder/**',

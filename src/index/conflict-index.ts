@@ -1,6 +1,6 @@
 import { type App, type DataAdapter, TFile } from 'obsidian';
 import { buildConflictGroups } from './group-conflicts';
-import { compileIgnore, pathIgnored } from '../patterns';
+import { compileIgnore, isUnderConfigDir, pathIgnored } from '../patterns';
 import type { ConflictFile, ConflictGroup, MeldDiffSettings, VaultFileInfo } from '../types';
 
 export interface FlatConflict {
@@ -96,7 +96,7 @@ export class ConflictIndex {
 			const settings = this.getSettings();
 			const files = await this.collectFiles(settings);
 			if (generation !== this.generation || this.dead) return;
-			this.groups = buildConflictGroups(files, settings.patterns, settings.ignoreGlobs);
+			this.groups = buildConflictGroups(files, settings.patterns, settings.ignoreGlobs, this.app.vault.configDir);
 			this.reindex();
 			this.ready = true;
 		} catch (error) {
@@ -155,7 +155,9 @@ export class ConflictIndex {
 	}
 
 	private async unindexedConflicts(known: Map<string, VaultFileInfo>, settings: MeldDiffSettings): Promise<VaultFileInfo[]> {
+		const configDir = this.app.vault.configDir;
 		const ignores = compileIgnore(settings.ignoreGlobs);
+		const skip = (path: string) => pathIgnored(path, ignores) || isUnderConfigDir(path, configDir);
 		const adapter = this.app.vault.adapter;
 		const found: VaultFileInfo[] = [];
 		const queue: string[] = [''];
@@ -169,19 +171,19 @@ export class ConflictIndex {
 			for (const folder of listed.folders) {
 				const normalized = normPath(folder);
 				if (!normalized || seen.has(normalized)) continue;
-				if (pathIgnored(normalized, ignores) || pathIgnored(`${normalized}/x`, ignores)) continue;
+				if (skip(normalized) || skip(`${normalized}/x`)) continue;
 				queue.push(normalized);
 			}
 			for (const file of listed.files) {
 				const path = normPath(file);
-				if (!path || known.has(path) || pathIgnored(path, ignores)) continue;
+				if (!path || known.has(path) || skip(path)) continue;
 				const abstract = this.app.vault.getAbstractFileByPath(path);
 				if (abstract instanceof TFile) continue;
 				found.push({ path, mtime: 0, size: 0 });
 			}
 		}
 		const matched: VaultFileInfo[] = [];
-		const preliminary = buildConflictGroups(found, settings.patterns, settings.ignoreGlobs);
+		const preliminary = buildConflictGroups(found, settings.patterns, settings.ignoreGlobs, configDir);
 		const wanted = new Set<string>();
 		for (const item of preliminary) {
 			for (const conflict of item.conflicts) wanted.add(conflict.path);

@@ -30,10 +30,19 @@ test('a missing original is still listed', () => {
 
 test('ignored folders are not indexed', () => {
 	const groups = buildConflictGroups([
-		{ path: '.obsidian/foo.sync-conflict-20240101-120000-ABCDEF1.md', mtime: 1, size: 8 },
+		{ path: '.trash/foo.sync-conflict-20240101-120000-ABCDEF1.md', mtime: 1, size: 8 },
 		{ path: 'notes/.git/foo.sync-conflict-20240101-120000-ABCDEF1.md', mtime: 1, size: 8 },
 	], patterns, DEFAULT_IGNORE_GLOBS);
 	assert.equal(groups.length, 0);
+});
+
+test('the configuration folder is not indexed even when it is not a default glob', () => {
+	const groups = buildConflictGroups([
+		{ path: '.vault-config/foo.sync-conflict-20240101-120000-ABCDEF1.md', mtime: 1, size: 8 },
+		{ path: '.vault-config-notes/foo.sync-conflict-20240101-120000-ABCDEF1.md', mtime: 1, size: 8 },
+	], patterns, DEFAULT_IGNORE_GLOBS, '.vault-config');
+	assert.equal(groups.length, 1);
+	assert.equal(groups[0]?.originalPath, '.vault-config-notes/foo.md');
 });
 
 test('an invalid pattern does not hide a later valid one', () => {

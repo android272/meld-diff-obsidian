@@ -58,6 +58,14 @@ export function pathIgnored(path: string, regs: readonly RegExp[]): boolean {
 	return regs.some((re) => re.test(norm));
 }
 
+/** True when `path` is the vault configuration folder or something inside it. */
+export function isUnderConfigDir(path: string, configDir: string | null | undefined): boolean {
+	const root = normalizeVaultPath(configDir ?? '');
+	if (!root) return false;
+	const norm = normalizeVaultPath(path);
+	return norm === root || norm.startsWith(`${root}/`);
+}
+
 export interface CompiledPattern {
 	pattern: ConflictPattern;
 	regex: RegExp;
