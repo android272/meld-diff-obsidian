@@ -66,12 +66,12 @@ export function registerCommands(plugin: MeldDiffPlugin): void {
 	plugin.addCommand({
 		id: 'diff-current-as-left',
 		name: 'Set current file as A',
-		checkCallback: (checking) => withActiveFile(plugin, checking, (file) => plugin.setSide('left', file.path)),
+		checkCallback: (checking) => withActiveFile(plugin, checking, (file) => { void plugin.setSide('left', file.path); }),
 	});
 	plugin.addCommand({
 		id: 'diff-current-as-right',
 		name: 'Set current file as B',
-		checkCallback: (checking) => withActiveFile(plugin, checking, (file) => plugin.setSide('right', file.path)),
+		checkCallback: (checking) => withActiveFile(plugin, checking, (file) => { void plugin.setSide('right', file.path); }),
 	});
 	plugin.addCommand({
 		id: 'scan-conflicts',
