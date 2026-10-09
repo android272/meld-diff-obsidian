@@ -198,6 +198,8 @@ export class DiffSurface {
 			diffConfig: { scanLimit: this.options.scanLimit },
 			collapseUnchanged: this.options.collapse ? { margin: this.options.collapseMargin } : undefined,
 		});
+		// The merge theme pins editor height. This layout owns that instead.
+		merge.dom.classList.replace('cm-mergeView', 'meld-merge');
 		this.merge = merge;
 		this.left = { view: merge.a, slots: leftSlots };
 		this.right = { view: merge.b, slots: rightSlots };

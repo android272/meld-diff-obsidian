@@ -1,5 +1,5 @@
-.meld-ribbon-hidden {
-	display: none !important;
+body .workspace-ribbon .side-dock-ribbon-action.meld-ribbon-hidden {
+	display: none;
 }
 
 .meld-diff-status {
@@ -333,16 +333,22 @@ body {
 	display: flex;
 }
 
-.meld-surface.is-aligned .cm-mergeView {
+.meld-surface.is-aligned .meld-merge {
 	height: 100%;
 	width: 100%;
 	overflow: auto;
 }
 
-.meld-surface:not(.is-aligned) .cm-mergeView {
+.meld-surface:not(.is-aligned) .meld-merge {
 	height: 100%;
 	width: 100%;
 	overflow: hidden;
+}
+
+.meld-surface.is-aligned .meld-merge .cm-editor,
+.meld-surface.is-aligned .meld-merge .cm-scroller {
+	height: auto;
+	overflow-y: visible;
 }
 
 .meld-surface .cm-mergeViewEditors {
@@ -360,10 +366,10 @@ body {
 	min-width: 180px;
 }
 
-.meld-surface:not(.is-aligned) .cm-editor,
-.meld-surface:not(.is-aligned) .cm-scroller {
-	height: 100% !important;
-	overflow: auto !important;
+.meld-surface:not(.is-aligned) .meld-merge .cm-editor,
+.meld-surface:not(.is-aligned) .meld-merge .cm-scroller {
+	height: 100%;
+	overflow: auto;
 }
 
 .meld-link-column {
@@ -471,8 +477,11 @@ body {
 	height: 16px;
 }
 
-.meld-diff-view .cm-gutters {
-	border: none !important;
+.meld-diff-view .cm-editor .cm-gutters,
+.meld-diff-view .cm-editor .cm-gutters.cm-gutters-before,
+.meld-diff-view .cm-editor .cm-gutters.cm-gutters-after {
+	border: none;
+	border-inline-width: 0;
 }
 
 .meld-diff-view .cm-ws-space,
@@ -515,25 +524,27 @@ body {
 	padding-left: 0.1em;
 }
 
-.meld-diff-view .cm-line.meld-hunk-change {
-	background-color: color-mix(in srgb, var(--meld-hunk-change) calc(var(--meld-hunk-block-opacity) * 100%), transparent) !important;
+.meld-diff-view .cm-editor .cm-line.meld-hunk-change {
+	background-color: color-mix(in srgb, var(--meld-hunk-change) calc(var(--meld-hunk-block-opacity) * 100%), transparent);
 }
 
-.meld-diff-view .cm-line.meld-hunk-insert {
-	background-color: color-mix(in srgb, var(--meld-hunk-insert) calc(var(--meld-hunk-block-opacity) * 100%), transparent) !important;
+.meld-diff-view .cm-editor .cm-line.meld-hunk-insert {
+	background-color: color-mix(in srgb, var(--meld-hunk-insert) calc(var(--meld-hunk-block-opacity) * 100%), transparent);
 }
 
-.meld-diff-view .cm-line.meld-hunk-delete {
-	background-color: color-mix(in srgb, var(--meld-hunk-delete) calc(var(--meld-hunk-block-opacity) * 100%), transparent) !important;
+.meld-diff-view .cm-editor .cm-line.meld-hunk-delete {
+	background-color: color-mix(in srgb, var(--meld-hunk-delete) calc(var(--meld-hunk-block-opacity) * 100%), transparent);
 }
 
-.meld-diff-view .cm-changedText {
-	background: color-mix(in srgb, var(--meld-hunk-token) calc(var(--meld-hunk-token-opacity) * 100%), transparent) !important;
+.meld-diff-view .cm-editor.cm-merge-a .cm-line .cm-changedText,
+.meld-diff-view .cm-editor.cm-merge-b .cm-line .cm-changedText,
+.meld-diff-view.is-mobile .cm-editor .cm-line .cm-changedText {
+	background: color-mix(in srgb, var(--meld-hunk-token) calc(var(--meld-hunk-token-opacity) * 100%), transparent);
 }
 
-.meld-diff-view .cm-line.meld-hunk-insert .cm-changedText,
-.meld-diff-view .cm-line.meld-hunk-delete .cm-changedText {
-	background: none !important;
+.meld-diff-view .cm-editor .cm-line.meld-hunk-insert .cm-changedText,
+.meld-diff-view .cm-editor .cm-line.meld-hunk-delete .cm-changedText {
+	background: none;
 }
 
 .meld-diff-view .cm-scroller {
@@ -819,9 +830,9 @@ settings:
 	min-height: 0;
 }
 
-.meld-diff-view.is-mobile .meld-mobile-editor .cm-scroller {
-	height: 100% !important;
-	overflow: auto !important;
+.meld-diff-view.is-mobile .meld-mobile-editor .cm-editor > .cm-scroller {
+	height: 100%;
+	overflow: auto;
 }
 
 .meld-diff-view.is-mobile .meld-mobile-dock {

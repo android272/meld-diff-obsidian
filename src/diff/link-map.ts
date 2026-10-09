@@ -237,7 +237,7 @@ export class LinkMap {
 	/** In aligned mode the editors grow with the file and the outer view scrolls. Pin the column to that visible frame so the wave stays on screen. */
 	private fitColumn(): void {
 		const surface = this.host.closest('.meld-surface');
-		const scroller = this.host.closest('.cm-mergeView');
+		const scroller = this.host.closest('.meld-merge');
 		const fit = Boolean(surface?.classList.contains('is-aligned') && scroller && scroller.clientHeight > 0);
 		this.host.toggleClass('is-fit', fit);
 		if (!fit || !scroller) return;
