@@ -9,7 +9,6 @@ export function registerCommands(plugin: MeldDiffPlugin): void {
 		plugin.addCommand({
 			id: conflictId(placement),
 			name: conflictName(placement),
-			hotkeys: [],
 			callback: () => { void plugin.openView('conflict', placement); },
 		});
 	};
@@ -23,7 +22,6 @@ export function registerCommands(plugin: MeldDiffPlugin): void {
 		plugin.addCommand({
 			id: diffId(placement),
 			name: diffName(placement),
-			hotkeys: [],
 			callback: () => { void plugin.openView('diff', placement); },
 		});
 	};
@@ -36,7 +34,6 @@ export function registerCommands(plugin: MeldDiffPlugin): void {
 	plugin.addCommand({
 		id: 'diff-current-with-other',
 		name: 'Meld Diff: Compare current file with…',
-		hotkeys: [],
 		checkCallback: (checking) => {
 			const file = plugin.app.workspace.getActiveFile();
 			if (!(file instanceof TFile)) return false;
@@ -52,7 +49,6 @@ export function registerCommands(plugin: MeldDiffPlugin): void {
 	plugin.addCommand({
 		id: 'diff-current-with-conflict',
 		name: 'Meld Diff: Compare current file with its conflict',
-		hotkeys: [],
 		checkCallback: (checking) => {
 			const file = plugin.app.workspace.getActiveFile();
 			if (!(file instanceof TFile)) return false;
@@ -65,31 +61,26 @@ export function registerCommands(plugin: MeldDiffPlugin): void {
 	plugin.addCommand({
 		id: 'diff-two-files',
 		name: 'Meld Diff: Compare two files…',
-		hotkeys: [],
 		callback: () => { void plugin.compareTwoFiles(); },
 	});
 	plugin.addCommand({
 		id: 'diff-current-as-left',
 		name: 'Meld Diff: Set current file as A',
-		hotkeys: [],
 		checkCallback: (checking) => withActiveFile(plugin, checking, (file) => plugin.setSide('left', file.path)),
 	});
 	plugin.addCommand({
 		id: 'diff-current-as-right',
 		name: 'Meld Diff: Set current file as B',
-		hotkeys: [],
 		checkCallback: (checking) => withActiveFile(plugin, checking, (file) => plugin.setSide('right', file.path)),
 	});
 	plugin.addCommand({
 		id: 'scan-conflicts',
 		name: 'Meld Diff: Rescan vault for conflicts',
-		hotkeys: [],
 		callback: () => plugin.rescan(),
 	});
 	plugin.addCommand({
 		id: 'open-next-conflict-diff',
 		name: 'Meld Diff: Open next unresolved conflict',
-		hotkeys: [],
 		callback: () => { void plugin.openNextConflict(); },
 	});
 
@@ -98,7 +89,6 @@ export function registerCommands(plugin: MeldDiffPlugin): void {
 		plugin.addCommand({
 			id,
 			name,
-			hotkeys: [],
 			checkCallback: (checking) => {
 				const view = plugin.getActiveDiffView();
 				if (!view || (ready && !ready(view))) return false;

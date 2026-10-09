@@ -69,7 +69,7 @@ This plugin does both jobs: a **Conflict View** that indexes matches, and a **Di
 | Conflict View | `ItemView` | Any workspace leaf: main tabs, left sidebar, right sidebar, splits, pop-out windows |
 | Diff View | `ItemView` | Same — a normal tab, not a modal and not locked to one region |
 | Settings tab | `PluginSettingTab` | Settings → Community plugins → Meld Diff |
-| Commands | Command palette + hotkeys | See §8. All of them set `hotkeys: []` so the user can bind them |
+| Commands | Command palette + hotkeys | See §8. None of them ship a default hotkey. The user binds them under Settings → Hotkeys |
 | Left ribbon | Two icons | Opens / reveals Conflict View and Diff View |
 | Status bar | Item | Conflict count; click reveals Conflict View |
 | File-explorer / editor menus | Context menu | “Compare with…”, “Compare with conflict” |
@@ -654,7 +654,7 @@ Do not add: per-theme (light vs dark) pickers, hue-rotate-from-accent, or a “o
 
 ## 8. Commands (all hotkey-bindable)
 
-Register every command with `this.addCommand`. Do not assign default hotkeys except where noted; leave them empty so the user binds them under Settings → Hotkeys. Filter commands with `checkCallback` so hunk actions only enable when a Diff View is active.
+Register every command with `this.addCommand`. Do not pass a `hotkeys` property. Omitting it leaves the command unbound, and the user can bind it under Settings → Hotkeys. Filter commands with `checkCallback` so hunk actions only enable when a Diff View is active.
 
 Command names must start with `Meld Diff:` so they group in the Hotkeys pane.
 
@@ -692,7 +692,7 @@ Command names must start with `Meld Diff:` so they group in the Hotkeys pane.
 
 ### 8.4 Diff View — navigation and files
 
-These require an active Diff View (`checkCallback`). Suggested optional defaults are listed; do not set them unless the key is free.
+These require an active Diff View (`checkCallback`). The shortcuts in the table are suggestions for users who want them. Do not register them as default hotkeys.
 
 | Id | Name | Suggested default | Action |
 |---|---|---|---|
