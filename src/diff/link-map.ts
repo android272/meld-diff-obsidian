@@ -130,10 +130,8 @@ export class LinkMap {
 	) {
 		this.svg = document.createElementNS(SVG_NS, 'svg');
 		this.svg.classList.add('meld-link-svg');
-		this.buttons = document.createElement('div');
-		this.buttons.className = 'meld-link-buttons';
 		host.appendChild(this.svg);
-		host.appendChild(this.buttons);
+		this.buttons = host.createDiv({ cls: 'meld-link-buttons' });
 		const viewWindow = host.ownerDocument.defaultView ?? window;
 		const onKey = (event: KeyboardEvent) => this.setMode(modifierMode(event));
 		const onBlur = () => this.setMode('replace');
@@ -239,7 +237,7 @@ export class LinkMap {
 	/** In aligned mode the editors grow with the file and the outer view scrolls. Pin the column to that visible frame so the wave stays on screen. */
 	private fitColumn(): void {
 		const surface = this.host.closest('.meld-surface');
-		const scroller = this.host.closest('.cm-mergeView') as HTMLElement | null;
+		const scroller = this.host.closest('.cm-mergeView');
 		const fit = Boolean(surface?.classList.contains('is-aligned') && scroller && scroller.clientHeight > 0);
 		this.host.toggleClass('is-fit', fit);
 		if (!fit || !scroller) return;
@@ -255,41 +253,37 @@ export class LinkMap {
 			const top = anchor ? pinnedButtonTop(anchor.top, anchor.bottom) : null;
 			if (top === null) return;
 			if (this.mode === 'insert' && !hunkHasBothSides(chunk)) return;
-			const row = document.createElement('div');
-			row.className = 'meld-hunk-buttons';
+			const row = this.buttons.createDiv({ cls: 'meld-hunk-buttons' });
 			row.style.top = `${top}px`;
 			const dirs: Array<'left' | 'right'> = this.mode === 'delete' ? ['left', 'right'] : ['right', 'left'];
 			if (this.mode === 'insert') {
 				for (const dir of dirs) {
-					const stack = document.createElement('div');
-					stack.className = 'meld-hunk-stack';
+					const stack = row.createDiv({ cls: 'meld-hunk-stack' });
 					for (const where of ['above', 'below'] as const) {
 						stack.appendChild(this.makeButton(dir, where, chunk));
 					}
-					row.appendChild(stack);
 				}
 			} else {
 				for (const dir of dirs) row.appendChild(this.makeButton(dir, 'above', chunk));
 			}
-			this.buttons.appendChild(row);
 		});
 	}
 
 	private makeButton(dir: 'left' | 'right', where: 'above' | 'below', chunk: RangeChunk): HTMLButtonElement {
-		const button = document.createElement('button');
-		button.type = 'button';
-		button.className = 'meld-hunk-button clickable-icon';
 		const mode = this.mode;
 		const icon = mode === 'delete' ? 'trash-2' : mode === 'insert' ? (where === 'above' ? 'chevron-up' : 'chevron-down') : dir === 'left' ? 'arrow-left' : 'arrow-right';
-		setIcon(button, icon);
 		const side = dir === 'left' ? 'A' : 'B';
 		const label = mode === 'replace'
 			? (dir === 'left' ? 'Replace A with B' : 'Replace B with A')
 			: mode === 'delete'
 				? `Delete hunk on ${side}`
 				: `Insert ${where} on ${side}`;
-		button.setAttribute('aria-label', label);
-		button.title = label;
+		const button = createEl('button', {
+			cls: 'meld-hunk-button clickable-icon',
+			title: label,
+			attr: { type: 'button', 'aria-label': label },
+		});
+		setIcon(button, icon);
 		button.addEventListener('mousedown', (event) => {
 			event.preventDefault();
 			event.stopPropagation();
@@ -311,8 +305,7 @@ export class LinkMap {
 	private openPopover(anchor: HTMLElement, dir: 'left' | 'right', chunk: RangeChunk): void {
 		if (!hunkHasBothSides(chunk)) return;
 		this.closePopover();
-		const pop = anchor.ownerDocument.createElement('div');
-		pop.className = 'meld-insert-pop';
+		const pop = createDiv({ cls: 'meld-insert-pop' });
 		for (const where of ['above', 'below'] as const) {
 			const choice = pop.createEl('button', { text: where === 'above' ? 'Insert above' : 'Insert below' });
 			choice.addEventListener('click', (event) => {

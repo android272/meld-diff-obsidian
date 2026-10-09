@@ -96,10 +96,7 @@ export function writeHunkColorStyle(doc: Document, settings: MeldDiffSettings): 
 	const head = doc.head;
 	if (!head) return;
 	let tag = doc.getElementById(HUNK_COLOR_STYLE_ID);
-	if (!tag) {
-		tag = doc.createElement('style');
-		tag.id = HUNK_COLOR_STYLE_ID;
-	}
+	if (!tag) tag = head.createEl('style', { attr: { id: HUNK_COLOR_STYLE_ID } });
 	tag.textContent = hunkColorStyleText(settings);
 	head.appendChild(tag);
 }

@@ -142,7 +142,7 @@ export class MobileShell {
 					continue;
 				}
 				const index = span.chunk;
-				const el = this.summaryBody.createEl('span', {
+				const el = this.summaryBody.createSpan({
 					cls: span.kind === 'delete' ? 'meld-summary-del' : 'meld-summary-ins',
 					text: span.text,
 					attr: { role: 'button', tabindex: '0' },

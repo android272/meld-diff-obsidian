@@ -723,7 +723,8 @@ export class DiffView extends ItemView {
 		if (this.autoTimers[side]) window.clearTimeout(this.autoTimers[side]);
 		this.autoTimers[side] = 0;
 		if (!this.plugin.settings.autosave || !this.isDirty(side)) return;
-		const file = this.sides[side].path ? this.app.vault.getAbstractFileByPath(this.sides[side].path as string) : null;
+		const path = this.sides[side].path;
+		const file = path ? this.app.vault.getAbstractFileByPath(path) : null;
 		if (!(file instanceof TFile)) return;
 		this.autoTimers[side] = window.setTimeout(() => {
 			this.autoTimers[side] = 0;
@@ -1201,13 +1202,9 @@ export class DiffView extends ItemView {
 }
 
 function disabledSaveTitle(reason: string): DocumentFragment {
-	const frag = document.createDocumentFragment();
-	const name = document.createElement('span');
-	name.textContent = 'Save';
-	const caption = document.createElement('span');
-	caption.className = 'meld-menu-caption';
-	caption.textContent = reason;
-	frag.append(name, caption);
-	return frag;
+	return createFragment((frag) => {
+		frag.createSpan({ text: 'Save' });
+		frag.createSpan({ cls: 'meld-menu-caption', text: reason });
+	});
 }
 

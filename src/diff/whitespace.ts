@@ -12,11 +12,7 @@ const tabMark = Decoration.mark({ class: 'cm-ws-tab' });
 
 class EndOfLineWidget extends WidgetType {
 	toDOM(): HTMLElement {
-		const span = document.createElement('span');
-		span.className = 'cm-ws-eol';
-		span.textContent = '↵';
-		span.setAttribute('aria-hidden', 'true');
-		return span;
+		return createSpan({ cls: 'cm-ws-eol', text: '↵', attr: { 'aria-hidden': 'true' } });
 	}
 	ignoreEvent(): boolean {
 		return true;

@@ -202,9 +202,8 @@ export class DiffSurface {
 		this.left = { view: merge.a, slots: leftSlots };
 		this.right = { view: merge.b, slots: rightSlots };
 		const editors = merge.dom.querySelector('.cm-mergeViewEditors');
-		const panes = editors ? Array.from(editors.children).filter((node): node is HTMLElement => node instanceof HTMLElement && node.classList.contains('cm-mergeViewEditor')) : [];
-		const column = document.createElement('div');
-		column.className = 'meld-link-column';
+		const panes = editors ? Array.from(editors.children).filter((node): node is HTMLElement => node.instanceOf(HTMLElement) && node.classList.contains('cm-mergeViewEditor')) : [];
+		const column = createDiv({ cls: 'meld-link-column' });
 		const rightPane = panes[1];
 		if (editors && rightPane) editors.insertBefore(column, rightPane);
 		else editors?.appendChild(column);
