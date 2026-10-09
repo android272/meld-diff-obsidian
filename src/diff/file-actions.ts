@@ -1,4 +1,4 @@
-import { FileSystemAdapter, Menu, Notice, TFile, TFolder, type App, type TAbstractFile } from 'obsidian';
+import { FileSystemAdapter, Menu, Notice, TFile, type App, type TAbstractFile } from 'obsidian';
 import { askString, confirm, noticeError } from '../ui/confirm';
 import { isBinaryExtension, joinPath } from '../text-util';
 import { pickFolder } from './file-suggest';
