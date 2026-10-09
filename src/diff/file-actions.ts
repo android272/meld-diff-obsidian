@@ -43,7 +43,7 @@ export async function revealInNavigation(app: App, file: TFile): Promise<void> {
 		new Notice('Could not reveal the file in the explorer.');
 		return;
 	}
-	app.workspace.revealLeaf(leaf);
+	await app.workspace.revealLeaf(leaf);
 	view.revealInFolder(file);
 }
 

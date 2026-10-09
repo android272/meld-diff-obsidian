@@ -716,7 +716,7 @@ export class DiffView extends ItemView {
 		this.sides[side].text = text;
 		this.scheduleAutosave(side);
 		this.renderSaveState();
-		this.maybePromptIdentical();
+		void this.maybePromptIdentical();
 	}
 
 	private scheduleAutosave(side: Side): void {

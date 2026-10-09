@@ -220,7 +220,7 @@ export default class MeldDiffPlugin extends Plugin {
 				await view.loadPair(left, right, options.prompt !== false);
 			});
 		}
-		this.app.workspace.revealLeaf(opened.leaf);
+		await this.app.workspace.revealLeaf(opened.leaf);
 	}
 
 	async setSide(side: 'left' | 'right', path: string): Promise<void> {
@@ -238,7 +238,7 @@ export default class MeldDiffPlugin extends Plugin {
 				await view.loadPair(side === 'left' ? path : left, side === 'right' ? path : right, true);
 			});
 		}
-		this.app.workspace.revealLeaf(opened.leaf);
+		await this.app.workspace.revealLeaf(opened.leaf);
 	}
 
 	async compareTwoFiles(): Promise<void> {

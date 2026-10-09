@@ -62,7 +62,7 @@ async function createLeaf(app: App, viewType: string, where: 'tab' | 'left' | 'r
 	if (!leaf) return null;
 	await leaf.setViewState({ type: viewType, active: true, state });
 	await ensureLoaded(leaf);
-	app.workspace.revealLeaf(leaf);
+	await app.workspace.revealLeaf(leaf);
 	noteActivation(leaf);
 	return leaf;
 }
@@ -93,7 +93,7 @@ export async function openMeldView(options: {
 		const existing = mostRecent(collectLeaves(app, viewType));
 		if (existing) {
 			await ensureLoaded(existing);
-			app.workspace.revealLeaf(existing);
+			await app.workspace.revealLeaf(existing);
 			noteActivation(existing);
 			return { leaf: existing, created: false };
 		}
@@ -109,7 +109,7 @@ export async function openMeldView(options: {
 		const leaf = mostRecent(existing);
 		if (leaf) {
 			await ensureLoaded(leaf);
-			app.workspace.revealLeaf(leaf);
+			await app.workspace.revealLeaf(leaf);
 			noteActivation(leaf);
 			return { leaf, created: false };
 		}
@@ -134,7 +134,7 @@ export async function openMeldView(options: {
 	}
 	if (pick) {
 		await ensureLoaded(pick);
-		app.workspace.revealLeaf(pick);
+		await app.workspace.revealLeaf(pick);
 		noteActivation(pick);
 		return { leaf: pick, created: false };
 	}
