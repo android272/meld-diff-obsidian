@@ -48,11 +48,7 @@
 }
 
 .meld-conflict-tools,
-.meld-diff-tools,
-.meld-preset-row,
-.meld-pattern-head,
-.meld-pattern-recovery,
-.meld-test-row {
+.meld-diff-tools {
 	display: flex;
 	gap: 6px;
 	align-items: center;
@@ -143,9 +139,6 @@
 
 .meld-diff-button,
 .meld-text-button,
-.meld-preset-row button,
-.meld-pattern-head button,
-.meld-test-row button,
 .meld-banner button {
 	background: var(--interactive-normal);
 	color: var(--text-normal);
@@ -615,106 +608,21 @@ body {
 	box-shadow: var(--shadow-s);
 }
 
-.meld-settings-intro {
-	color: var(--text-muted);
-}
-
-.meld-setting-hidden,
 .meld-save-hidden {
 	display: none;
-}
-
-.meld-settings .meld-ignore-globs.setting-item {
-	flex-direction: column;
-	align-items: stretch;
-}
-
-.meld-settings .meld-ignore-globs .setting-item-info,
-.meld-settings .meld-ignore-globs .setting-item-control {
-	width: 100%;
-}
-
-.meld-settings .meld-ignore-globs .setting-item-control {
-	padding-top: 8px;
-}
-
-.meld-settings .meld-ignore-globs-input {
-	width: 100%;
-	max-width: 100%;
-	min-height: 7em;
-	box-sizing: border-box;
-}
-
-.meld-pattern-card {
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 8px;
-	padding: 10px;
-	margin: 8px 0 12px;
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-	background: var(--background-primary);
 }
 
 .meld-prompt-input {
 	width: 100%;
 }
 
-.meld-input,
-.meld-textarea {
+.meld-input {
 	width: 100%;
 	background-color: var(--background-modifier-form-field);
 	border: 1px solid var(--background-modifier-border);
 	color: var(--text-normal);
 	border-radius: var(--input-radius, var(--radius-s));
 	padding: 6px 8px;
-}
-
-/* background shorthand would reset the dropdown chevron to repeat from the left */
-.meld-pattern-card select.dropdown {
-	width: auto;
-	flex: 0 0 auto;
-	max-width: 100%;
-	background-color: var(--background-modifier-form-field);
-	background-repeat: no-repeat;
-	padding: 6px 1.8em 6px 8px;
-	color: var(--text-normal);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--input-radius, var(--radius-s));
-}
-
-.meld-pattern-head .meld-input,
-.meld-pattern-recovery .meld-input,
-.meld-test-row .meld-input {
-	flex: 1;
-	width: auto;
-}
-
-.meld-textarea {
-	min-height: 72px;
-	font-family: var(--font-monospace);
-	resize: vertical;
-}
-
-.meld-pattern-error {
-	color: var(--text-error);
-	font-size: var(--font-ui-smaller);
-}
-
-.meld-pattern-error:empty {
-	display: none;
-}
-
-.meld-test-result {
-	color: var(--text-muted);
-	font-size: var(--font-ui-small);
-}
-
-.meld-check {
-	display: flex;
-	align-items: center;
-	gap: 4px;
-	flex: none;
 }
 
 @container (max-width: 560px) {
