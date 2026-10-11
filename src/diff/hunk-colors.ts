@@ -33,7 +33,17 @@ const THEME_PROBE: Record<HunkColorSlot, readonly string[]> = {
 
 const DECLARATION = /--(meld-hunk-(?:delete|insert|change|token|block-opacity|token-opacity))\s*:\s*([^;]+)\s*;/g;
 
-export const HUNK_COLOR_STYLE_ID = 'meld-diff-hunk-colors';
+const HUNK_COLOR_VARS = [
+	'--meld-hunk-delete',
+	'--meld-hunk-insert',
+	'--meld-hunk-change',
+	'--meld-hunk-token',
+	'--meld-hunk-block-opacity',
+	'--meld-hunk-token-opacity',
+] as const;
+
+/** Removed on load. Older builds injected a style element with this id. */
+const LEGACY_HUNK_COLOR_STYLE_ID = 'meld-diff-hunk-colors';
 
 export function quantizeOpacity(value: number): number {
 	return Math.round(value * 100) / 100;
@@ -92,17 +102,21 @@ export function hunkColorStyleText(settings: MeldDiffSettings): string {
 	return `body, body.css-settings-manager { ${body} }`;
 }
 
+/** Set hunk colors on the window body. Defaults live in styles.css. */
 export function writeHunkColorStyle(doc: Document, settings: MeldDiffSettings): void {
-	const head = doc.head;
-	if (!head) return;
-	let tag = doc.getElementById(HUNK_COLOR_STYLE_ID);
-	if (!tag) tag = head.createEl('style', { attr: { id: HUNK_COLOR_STYLE_ID } });
-	tag.textContent = hunkColorStyleText(settings);
-	head.appendChild(tag);
+	const body = doc.body;
+	if (!body) return;
+	doc.getElementById(LEGACY_HUNK_COLOR_STYLE_ID)?.remove();
+	for (const [name, value] of Object.entries(hunkColorCss(settings))) {
+		body.style.setProperty(name, value);
+	}
 }
 
 export function removeHunkColorStyle(doc: Document): void {
-	doc.getElementById(HUNK_COLOR_STYLE_ID)?.remove();
+	doc.getElementById(LEGACY_HUNK_COLOR_STYLE_ID)?.remove();
+	const body = doc.body;
+	if (!body) return;
+	for (const name of HUNK_COLOR_VARS) body.style.removeProperty(name);
 }
 
 export function meldColorDeclarations(css: string): Map<string, string> {
